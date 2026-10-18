@@ -70,11 +70,17 @@ RELEASE_COMMITS = {
     "3.6.0": "3e868ac5d5b62d3a2790958542171143af8a0e38",
     "3.7.0": "47c14c59b14f835f53971d22941b556f44f2baa0",
 }
-# The repository moved from luckyPipewrench to pipelab-org; GitHub owner names
-# are case-insensitive, so either owner in any case names the same action.
+# The repository moved from luckyPipewrench to pipelab-org. GitHub owner and
+# repository names are case-insensitive, so either owner in any case names the
+# same repository action. jobs.<job_id>.steps[*].uses also selects
+# owner/repo/path@ref, which is a different action in that repository. A path
+# still has to count, or a second step hides beside the pinned root action.
+# It cannot satisfy the one repository-root producer. The ref is compared
+# case-sensitively in _same_commit.
 ACTION_OWNERS = ("luckyPipewrench", "pipelab-org")
 ACTION_USES = re.compile(
-    r"^(?P<owner>[^/@]+)/pipelock(?:/[^@]+)?@(?P<ref>.*)$", re.IGNORECASE
+    r"^(?P<owner>[^/@]+)/pipelock(?P<path>/[^@]+)?@(?P<ref>.*)$",
+    re.IGNORECASE,
 )
 INSTALL_REF = re.compile(r"cmd/pipelock@(\S+)")
 
@@ -163,9 +169,16 @@ def producer_pin_problems(job):
     if len(installs) != 1:
         return [f"expected exactly one `go install ...cmd/pipelock@<commit>`, found {len(installs)}: {installs!r}"]
     step, action_ref = actions[0]
-    owner = ACTION_USES.fullmatch(str(step["uses"])).group("owner")
+    parsed = ACTION_USES.fullmatch(str(step["uses"]))
+    owner = parsed.group("owner")
     if owner.lower() not in {o.lower() for o in ACTION_OWNERS}:
         return [f"unrecognized Pipelock action owner {owner!r}; expected {owners}"]
+    if parsed.group("path"):
+        shown = str(step.get("uses"))
+        return [
+            f"Pipelock action {shown!r} selects a subdirectory action; "
+            f"expected exactly one repository-root step using {owners}"
+        ]
     version = str((step.get("with") or {}).get("version") or "")
     commit = RELEASE_COMMITS.get(version)
     if commit is None:
@@ -180,7 +193,8 @@ def producer_pin_problems(job):
 
 
 def drift_job(version="3.6.0", action=None, owner="luckyPipewrench", install="env",
-              rev=None, decoy=None, extra_actions=(), with_install=True):
+              rev=None, decoy=None, extra_actions=(), with_install=True,
+              repository="pipelock"):
     """A minimal security-scan job for the drift table.
 
     install="env" builds from ${PIPELOCK_REV}; "other" builds from
@@ -192,7 +206,7 @@ def drift_job(version="3.6.0", action=None, owner="luckyPipewrench", install="en
     action = base if action is None else action
     rev = base if rev is None else rev
     with_block = {} if version is None else {"version": version}
-    steps = [{"uses": f"{owner}/pipelock@{action}", "with": with_block}]
+    steps = [{"uses": f"{owner}/{repository}@{action}", "with": with_block}]
     steps += [{"uses": uses, "with": {"version": v}} for uses, v in extra_actions]
     if with_install:
         if install == "env":
@@ -320,6 +334,8 @@ class PipelockScanWorkflowTest(unittest.TestCase):
              drift_job(version="3.7.0", action=new, rev=new), None),
             ("positive control: action under pipelab-org", drift_job(owner="pipelab-org"), None),
             ("positive control: owner in another case", drift_job(owner="LUCKYPIPEWRENCH"), None),
+            ("positive control: repository name in another case",
+             drift_job(repository="Pipelock"), None),
             ("version advanced alone", drift_job(version="3.7.0"), "not the release"),
             ("version not a verified release", drift_job(version="9.9.9"), "not a verified release"),
             ("version left floating", drift_job(version="latest"), "not a verified release"),
@@ -353,6 +369,10 @@ class PipelockScanWorkflowTest(unittest.TestCase):
              drift_job(extra_actions=(("luckyPipewrench/Pipelock@main", "3.7.0"),)), "found 2 Pipelock action steps"),
             ("second action step, subpath action",
              drift_job(extra_actions=(("luckyPipewrench/pipelock/sub@main", "3.7.0"),)), "found 2 Pipelock action steps"),
+            ("subdirectory action replaces the repository action",
+             drift_job(repository="pipelock/sub"), "selects a subdirectory action"),
+            ("nested action path replaces the repository action",
+             drift_job(repository="pipelock/.github/workflows/other.yml"), "selects a subdirectory action"),
             ("action owner unknown", drift_job(owner="someone-else"), "unrecognized Pipelock action owner"),
             ("second action step, unknown owner",
              drift_job(extra_actions=(("someone-else/pipelock@main", "3.7.0"),)), "found 2 Pipelock action steps"),
