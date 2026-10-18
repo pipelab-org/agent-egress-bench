@@ -55,7 +55,7 @@ def check_workflow(path: Path) -> None:
         "version: v2.17.1",
         "install-only: true",
         "./scripts/release-build.sh --tag snapshot --commit \"$GITHUB_SHA\" --snapshot",
-        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
         "path: dist/release/",
         "retention-days: 14",
     )
@@ -85,7 +85,7 @@ def check_workflow(path: Path) -> None:
         raise AssertionError("no-publish draft rehearsal can mutate GitHub or skips the draft guard")
     if "if: github.event_name == 'push'" not in attest or "attestations: write" not in attest or "id-token: write" not in attest:
         raise AssertionError("attestation write permission is not confined to tag pushes")
-    if "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" not in attest or "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8" not in attest:
+    if "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333" not in attest or "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8" not in attest:
         raise AssertionError("tag-only attestation does not consume the built release artifacts")
     if "subject-path: dist/release/*\n" not in attest:
         raise AssertionError("all release assets are not attested")

@@ -3,18 +3,18 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/luckyPipewrench/agent-egress-bench/actions/workflows/validate.yaml"><img src="https://github.com/luckyPipewrench/agent-egress-bench/actions/workflows/validate.yaml/badge.svg" alt="Validate Cases"></a>
-  <a href="https://github.com/luckyPipewrench/agent-egress-bench/actions/workflows/security.yaml"><img src="https://github.com/luckyPipewrench/agent-egress-bench/actions/workflows/security.yaml/badge.svg" alt="Security"></a>
-  <a href="https://github.com/luckyPipewrench/agent-egress-bench/actions/workflows/pipelock.yaml"><img src="https://github.com/luckyPipewrench/agent-egress-bench/actions/workflows/pipelock.yaml/badge.svg" alt="Pipelock self-scan"></a>
+  <a href="https://github.com/pipelab-org/agent-egress-bench/actions/workflows/validate.yaml"><img src="https://github.com/pipelab-org/agent-egress-bench/actions/workflows/validate.yaml/badge.svg" alt="Validate Cases"></a>
+  <a href="https://github.com/pipelab-org/agent-egress-bench/actions/workflows/security.yaml"><img src="https://github.com/pipelab-org/agent-egress-bench/actions/workflows/security.yaml/badge.svg" alt="Security"></a>
+  <a href="https://github.com/pipelab-org/agent-egress-bench/actions/workflows/pipelock.yaml"><img src="https://github.com/pipelab-org/agent-egress-bench/actions/workflows/pipelock.yaml/badge.svg" alt="Pipelock self-scan"></a>
   <a href="https://codecov.io/gh/luckyPipewrench/agent-egress-bench"><img src="https://codecov.io/gh/luckyPipewrench/agent-egress-bench/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://scorecard.dev/viewer/?uri=github.com/luckyPipewrench/agent-egress-bench"><img src="https://api.scorecard.dev/projects/github.com/luckyPipewrench/agent-egress-bench/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/pipelab-org/agent-egress-bench"><img src="https://api.scorecard.dev/projects/github.com/pipelab-org/agent-egress-bench/badge" alt="OpenSSF Scorecard"></a>
   <a href="https://go.dev/dl/"><img src="https://img.shields.io/badge/Go-1.26%2B-00e5a0?logo=go&logoColor=white&labelColor=0e0e11" alt="Go 1.26+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-00e5a0?labelColor=0e0e11" alt="License: Apache 2.0"></a>
   <a href="https://discord.gg/badNfhGKTc"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&labelColor=0e0e11" alt="Discord"></a>
 </p>
 
 <p align="center">
-  An open, tool-neutral yardstick maintained by <a href="https://pipelab.org">PipeLab</a>, who also build <a href="https://github.com/luckyPipewrench/pipelock">Pipelock</a>.
+  An open, tool-neutral yardstick maintained by <a href="https://pipelab.org">PipeLab</a>, who also build <a href="https://github.com/pipelab-org/pipelock">Pipelock</a>.
   It publishes no ranking and awards no mark, and anyone may publish a result that reflects badly on Pipelock. See <a href="#governance">Governance</a>.
 </p>
 
@@ -288,7 +288,7 @@ Full mapping with MITRE ATT&CK techniques: [`docs/OWASP-MAPPING.md`](docs/OWASP-
 
 ## Governance
 
-Agent Egress Bench is an open project maintained by [PipeLab](https://pipelab.org), the company behind [Pipelock](https://github.com/luckyPipewrench/pipelock). That sentence is the conflict-of-interest disclosure, and the rest of this section is what's done about it.
+Agent Egress Bench is an open project maintained by [PipeLab](https://pipelab.org), the company behind [Pipelock](https://github.com/pipelab-org/pipelock). That sentence is the conflict-of-interest disclosure, and the rest of this section is what's done about it.
 
 - **Open, not yet independent.** The corpus, contracts, scoring, and verification are public and tool-agnostic. Comparative authority isn't claimed until people outside PipeLab hold decision rights over case semantics and scoring. Until then, this is a maintained open instrument, and the docs say so rather than calling it neutral.
 - **No ranking here.** This repository publishes no ranking, leaderboard, or cross-tool comparison table, and the maintainer awards no mark, badge, or pass label to anyone's result, including its own. <!-- claim-ok: states the non-claim -->
@@ -297,7 +297,7 @@ Agent Egress Bench is an open project maintained by [PipeLab](https://pipelab.or
 - **No retroactive scoring.** A scoring change gets a version; a published number is never moved.
 - **Cases are written to the wire, not to a product.** They test observable behavior (did the request get blocked?), never implementation internals. The [Pipelock runner](examples/pipelock/) is a reference implementation, not a privileged position.
 
-The full policy, including versioning, mixed-release readers, and the case-repair record format, is [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md). Pipelock's own scheduled runs live in [`luckyPipewrench/pipelock`](https://github.com/luckyPipewrench/pipelock); the corpus, runner, and portable command live here, and [`docs/CONTINUOUS-RESULTS.md`](docs/CONTINUOUS-RESULTS.md) is the review and publication contract between them.
+The full policy, including versioning, mixed-release readers, and the case-repair record format, is [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md). Pipelock's own scheduled runs live in [`pipelab-org/pipelock`](https://github.com/pipelab-org/pipelock); the corpus, runner, and portable command live here, and [`docs/CONTINUOUS-RESULTS.md`](docs/CONTINUOUS-RESULTS.md) is the review and publication contract between them.
 
 ## Releases and artifacts
 
@@ -353,8 +353,8 @@ The bench binaries are multi-OS. The Pipelock reference lane is Linux-only, and 
 
 Cases, adapters, runners, and documentation fixes are all welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), then open a pull request against `main`. Issue templates exist for a [new case](.github/ISSUE_TEMPLATE/new-case.md), a [new runner](.github/ISSUE_TEMPLATE/new-runner.md), and a [bug](.github/ISSUE_TEMPLATE/bug.md).
 
-- A disputed case verdict or other case-semantics question is a [GitHub Issue](https://github.com/luckyPipewrench/agent-egress-bench/issues).
-- A scoring question, an adapter or method question, or a result that appears to misstate the method is a [GitHub Discussion](https://github.com/luckyPipewrench/agent-egress-bench/discussions).
+- A disputed case verdict or other case-semantics question is a [GitHub Issue](https://github.com/pipelab-org/agent-egress-bench/issues).
+- A scoring question, an adapter or method question, or a result that appears to misstate the method is a [GitHub Discussion](https://github.com/pipelab-org/agent-egress-bench/discussions).
 - Chat lives on [Discord](https://discord.gg/badNfhGKTc). Security reports follow [SECURITY.md](SECURITY.md).
 
 ## Citing

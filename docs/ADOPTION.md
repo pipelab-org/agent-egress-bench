@@ -100,4 +100,4 @@ Do not open issues asking to change a case ID. IDs are immutable. Semantic chang
 
 ## Questions
 
-Open a GitHub issue or discussion. [PipeLab](https://pipelab.org) maintains the project and also builds [Pipelock](https://github.com/luckyPipewrench/pipelock). Contributions from any vendor or individual are welcome.
+Open a GitHub issue or discussion. [PipeLab](https://pipelab.org) maintains the project and also builds [Pipelock](https://github.com/pipelab-org/pipelock). Contributions from any vendor or individual are welcome.

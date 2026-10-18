@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -146,6 +147,92 @@ class ActionArtifactsTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, msg=result.stderr)
         source.write_text("swapped\n", encoding="utf-8")
         self.assertEqual("trusted\n", destination.read_text(encoding="utf-8"))
+
+    # A FIFO with no writer makes a blocking open() wait forever. The child process runs under a
+    # deadline so a regression fails this test instead of stalling the suite.
+    OPEN_DEADLINE_SECONDS = 10
+
+    def bounded(self, *args: str) -> subprocess.CompletedProcess[str]:
+        try:
+            return subprocess.run(
+                [sys.executable, str(SCRIPT), *args],
+                text=True,
+                capture_output=True,
+                timeout=self.OPEN_DEADLINE_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            self.fail(f"{args[0]} waited in open() on a FIFO for {self.OPEN_DEADLINE_SECONDS}s")
+
+    def test_fifo_inputs_are_refused_without_waiting(self) -> None:
+        self.assertEqual(0, self.prepare().returncode)
+        stage = self.root / "stage"
+        stage.mkdir()
+        fifo = stage / "results.jsonl"
+        os.mkfifo(fifo)
+        metadata = stage / "run-metadata.json"
+        metadata.write_text("{}\n", encoding="utf-8")
+        os.mkfifo(self.workspace / "runner-image.ref")
+        destination = self.root / "staged.ref"
+
+        publish = self.bounded(
+            "publish",
+            "--workspace", str(self.workspace),
+            "--output-dir", "aeb-results",
+            "--results", str(fifo),
+            "--metadata", str(metadata),
+        )
+        inspect = self.bounded("inspect-summary", "--path", str(fifo))
+        staged = self.bounded(
+            "stage-input",
+            "--workspace", str(self.workspace),
+            "--path", "runner-image.ref",
+            "--destination", str(destination),
+        )
+
+        self.assertNotEqual(0, publish.returncode)
+        self.assertIn("artifact is not a regular file", publish.stderr)
+        self.assertFalse((self.workspace / "aeb-results" / "results.jsonl").exists())
+        self.assertNotEqual(0, inspect.returncode)
+        self.assertEqual("invalid", inspect.stdout.strip())
+        self.assertNotEqual(0, staged.returncode)
+        self.assertIn("workspace input is not a regular file", staged.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_regular_inputs_still_pass_the_non_blocking_opens(self) -> None:
+        """Positive control for the FIFO test: the same paths succeed for ordinary files."""
+        self.assertEqual(0, self.prepare().returncode)
+        stage = self.root / "stage"
+        stage.mkdir()
+        results = stage / "results.jsonl"
+        results.write_text('{"case":"AEB-0001"}\n', encoding="utf-8")
+        summary = stage / "summary.json"
+        summary.write_text('{"measurement_status":"measured"}\n', encoding="utf-8")
+        metadata = stage / "run-metadata.json"
+        metadata.write_text("{}\n", encoding="utf-8")
+        (self.workspace / "runner-image.ref").write_text("image\n", encoding="utf-8")
+        destination = self.root / "staged.ref"
+
+        publish = self.bounded(
+            "publish",
+            "--workspace", str(self.workspace),
+            "--output-dir", "aeb-results",
+            "--results", str(results),
+            "--metadata", str(metadata),
+        )
+        inspect = self.bounded("inspect-summary", "--path", str(summary))
+        staged = self.bounded(
+            "stage-input",
+            "--workspace", str(self.workspace),
+            "--path", "runner-image.ref",
+            "--destination", str(destination),
+        )
+
+        self.assertEqual(0, publish.returncode, msg=publish.stderr)
+        self.assertEqual(results.read_bytes(), (self.workspace / "aeb-results" / "results.jsonl").read_bytes())
+        self.assertEqual(0, inspect.returncode, msg=inspect.stderr)
+        self.assertEqual("measured", inspect.stdout.strip())
+        self.assertEqual(0, staged.returncode, msg=staged.stderr)
+        self.assertEqual("image\n", destination.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
