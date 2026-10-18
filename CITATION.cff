@@ -6,7 +6,7 @@ authors:
   - given-names: Joshua
     family-names: Waldrep
     alias: luckyPipewrench
-repository-code: https://github.com/luckyPipewrench/agent-egress-bench
+repository-code: https://github.com/pipelab-org/agent-egress-bench
 license: Apache-2.0
 keywords:
   - ai-security

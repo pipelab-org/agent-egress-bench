@@ -55,7 +55,9 @@ def prepare(workspace: Path, output_dir: str) -> None:
 
 def regular_source(path: Path) -> tuple[int, os.stat_result]:
     try:
-        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        # O_NONBLOCK keeps open() from waiting on a FIFO; the S_ISREG check below then refuses it.
+        # It has no effect on reads from a regular file.
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as exc:
         raise ArtifactError(f"artifact is not a no-follow regular file: {path}: {exc}") from exc
     info = os.fstat(descriptor)
@@ -75,7 +77,8 @@ def workspace_source(workspace: Path, source_path: str) -> int:
             next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current)
             os.close(current)
             current = next_fd
-        descriptor = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=current)
+        # As in regular_source: do not wait in open() on a FIFO, refuse it after fstat instead.
+        descriptor = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=current)
     finally:
         os.close(current)
     info = os.fstat(descriptor)

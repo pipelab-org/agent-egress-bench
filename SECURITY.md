@@ -6,7 +6,7 @@ This repository contains **intentionally fake test data** designed to evaluate A
 
 ## Reporting Issues
 
-If you find a real security issue in this repository (e.g., an accidentally committed real credential, a vulnerability in the validator, or a case that could cause harm when used), please report it via [GitHub Security Advisories](https://github.com/luckyPipewrench/agent-egress-bench/security/advisories).
+If you find a real security issue in this repository (e.g., an accidentally committed real credential, a vulnerability in the validator, or a case that could cause harm when used), please report it via [GitHub Security Advisories](https://github.com/pipelab-org/agent-egress-bench/security/advisories).
 
 Do not open a public issue for security vulnerabilities.
 
