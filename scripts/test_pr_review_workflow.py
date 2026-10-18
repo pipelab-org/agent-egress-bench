@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Validate bounded proposed workflows using trusted default-branch definitions."""
 
+import hashlib
 import os
 import pathlib
 import re
 import stat
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -163,6 +165,77 @@ jobs:
 """,)
 
 
+
+# These digests approve the complete shared-review installation as one state.
+# They bind repository data and executable validation to the reviewed migration.
+SHARED_FILES = {'.github/workflows/agent-review.yaml': '644f8a65d0dad6ff62d2502f48650b7a94fb6ae97afad65f96fda042c584caea', '.github/agent-review.toml': 'bf12e8fb77baa1840c5d167c432fde1c03298ed311cb45635374cb40e1a8ba02', '.github/workflows/review-caller-contract.yaml': 'd304bf0150b7f48dac125f4e697a6c9f3798298f616e1b230707dc9ec9b43895', 'scripts/check_agent_review_workflow.py': '969a0930c2aa64e1eff3782144c08646de4f16bd060e8d48ee54ad10a20255ae'}
+MIGRATED_WORKFLOWS = ('.github/workflows/agent-review.yaml', '.github/workflows/continuous-gauntlet.yaml', '.github/workflows/dependency-review.yaml', '.github/workflows/pipelock.yaml', '.github/workflows/publish-release.yaml', '.github/workflows/release.yaml', '.github/workflows/review-caller-contract.yaml', '.github/workflows/scorecard.yaml', '.github/workflows/security.yaml', '.github/workflows/validate.yaml')
+
+
+def git_output(root, *arguments):
+    """Read repository objects without checking out or executing proposed files."""
+    return subprocess.check_output(
+        ["git", "-C", str(root), *arguments], stderr=subprocess.PIPE,
+    )
+
+
+def tree_entries(root, *paths):
+    entries = {}
+    for record in git_output(root, "ls-tree", "-z", "HEAD", "--", *paths).split(b"\0"):
+        if not record:
+            continue
+        metadata, name = record.split(b"\t", 1)
+        mode, kind, oid = metadata.split()
+        entries[name.decode("utf-8")] = (mode, kind, oid.decode("ascii"))
+    return entries
+
+
+def read_blob(root, entry):
+    """Bound object reads and verify bytes against their Git object identity."""
+    mode, kind, oid = entry
+    if mode != b"100644" or kind != b"blob":
+        raise ValueError("shared review files must be regular non-executable blobs")
+    size = int(git_output(root, "cat-file", "-s", oid))
+    if size < 0 or size > MAX_WORKFLOW_BYTES:
+        raise ValueError("shared review blob exceeds the data limit")
+    data = git_output(root, "cat-file", "blob", oid)
+    if len(data) != size:
+        raise ValueError("shared review blob size differs from its object header")
+    header = b"blob " + str(size).encode("ascii") + b"\0"
+    if hashlib.sha1(header + data).hexdigest() != oid:
+        raise ValueError("shared review blob differs from its Git identity")
+    return data
+
+
+def shared_migration(path):
+    """Admit only complete approved migrations; retain legacy suite selection."""
+    path = pathlib.Path(path).absolute()
+    if path.parent.name != "workflows" or path.parent.parent.name != ".github":
+        return False
+    root = path.parents[2]
+    if not (root / ".git").exists():
+        return False
+    old = ".github/workflows/pr-review.yaml"
+    entries = tree_entries(root, old, *SHARED_FILES)
+    shared = set(entries).intersection(SHARED_FILES)
+    contract = ".github/workflows/review-caller-contract.yaml"
+    if old in entries:
+        if shared - {contract}:
+            raise ValueError("legacy and shared review installations must not mix")
+        if contract not in entries or read_blob(root, entries[contract]).decode("utf-8") not in EXPECTED_CONTRACTS:
+            raise ValueError("legacy caller requires its legacy checking workflow")
+        return False
+    if shared != set(SHARED_FILES):
+        raise ValueError("shared review installation is incomplete")
+    inventory = tree_entries(root, ".github/workflows/")
+    if set(inventory) != set(MIGRATED_WORKFLOWS):
+        raise ValueError("migration changes unexpected workflow paths")
+    for name, expected in SHARED_FILES.items():
+        if hashlib.sha256(read_blob(root, entries[name])).hexdigest() != expected:
+            raise ValueError("shared review installation differs from its approved data")
+    return True
+
+
 def read_workflow(path):
     """Read bounded UTF-8 data without following any path-component symlink."""
     path = pathlib.Path(path)
@@ -195,6 +268,8 @@ def read_workflow(path):
 
 def validate_caller(path):
     """Accept only an approved shape with matching approved immutable pins."""
+    if shared_migration(path):
+        return APPROVED_REVIEWER_SHAS[0]
     text = read_workflow(path)
     pins = re.findall(
         r"(?:pr-review-reusable\.yaml@|reviewer_sha: )([0-9a-f]{40})$",
@@ -211,6 +286,8 @@ def validate_caller(path):
 
 def validate_contract(path):
     """Compare exact text, including executable block-scalar comments."""
+    if shared_migration(path):
+        return
     if read_workflow(path) not in EXPECTED_CONTRACTS:
         raise ValueError("proposed contract differs from its trusted definition")
 
@@ -379,6 +456,141 @@ class WorkflowInputTest(unittest.TestCase):
                             else:
                                 with self.assertRaises(ValueError):
                                     check(path)
+
+
+
+class SharedMigrationTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = pathlib.Path(self.temporary.name)
+        self.git("init", "-q")
+        self.caller = self.root / ".github/workflows/pr-review.yaml"
+        self.contract = self.caller.with_name("review-caller-contract.yaml")
+        self.shared_data = {name: ("approved " + name + "\n").encode() for name in SHARED_FILES}
+        self.digests = {name: hashlib.sha256(data).hexdigest() for name, data in self.shared_data.items()}
+        self.patch = mock.patch.dict(globals(), SHARED_FILES=self.digests)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+        for name in MIGRATED_WORKFLOWS:
+            if name not in self.shared_data:
+                self.write(name, b"name: existing CI\n")
+
+    def git(self, *arguments):
+        return subprocess.check_output(
+            ["git", "-C", str(self.root), "-c", "user.name=Test",
+             "-c", "user.email=test@example.invalid", *arguments], stderr=subprocess.PIPE,
+        )
+
+    def write(self, name, data):
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+
+    def commit(self):
+        self.git("add", "--all")
+        self.git("commit", "-qm", "test fixture")
+
+    def migrate(self):
+        for name, data in self.shared_data.items():
+            self.write(name, data)
+        self.commit()
+
+    def legacy(self):
+        self.write(".github/workflows/pr-review.yaml",
+                   EXPECTED_CALLERS[0].replace("REVIEWER_SHA", APPROVED_REVIEWER_SHAS[0]).encode())
+        self.write(".github/workflows/review-caller-contract.yaml", EXPECTED_CONTRACTS[0].encode())
+        self.commit()
+
+    def test_legacy_remains_approved(self):
+        self.legacy()
+        self.assertEqual(validate_caller(self.caller), APPROVED_REVIEWER_SHAS[0])
+        validate_contract(self.contract)
+
+    def test_migration_retains_legacy_security_suite(self):
+        self.migrate()
+        # Sparse proposed checkout does not materialize the shared data files.
+        for name in self.shared_data:
+            (self.root / name).unlink()
+        self.assertEqual(validate_caller(self.caller), APPROVED_REVIEWER_SHAS[0])
+        validate_contract(self.contract)
+
+    def test_mixed_installations_are_denied(self):
+        self.legacy()
+        for name, data in self.shared_data.items():
+            with self.subTest(name=name):
+                original = self.contract.read_bytes()
+                self.write(name, data)
+                self.commit()
+                with self.assertRaises(ValueError):
+                    validate_caller(self.caller)
+                if name == ".github/workflows/review-caller-contract.yaml":
+                    self.contract.write_bytes(original)
+                else:
+                    (self.root / name).unlink()
+                self.commit()
+
+    def test_partial_and_tampered_installations_are_denied(self):
+        self.migrate()
+        for name, data in self.shared_data.items():
+            with self.subTest(name=name):
+                for changed in [None, data + b"changed\n", b"x" * (MAX_WORKFLOW_BYTES + 1)]:
+                    if changed is None:
+                        (self.root / name).unlink()
+                    else:
+                        self.write(name, changed)
+                    self.commit()
+                    for check, path in [(validate_caller, self.caller), (validate_contract, self.contract)]:
+                        with self.assertRaises(ValueError):
+                            check(path)
+                    self.write(name, data)
+                    self.commit()
+
+    def test_unexpected_workflow_is_denied(self):
+        self.migrate()
+        self.write(".github/workflows/unapproved.yml", b"name: other\n")
+        self.commit()
+        with self.assertRaises(ValueError):
+            validate_caller(self.caller)
+
+    def test_symlink_and_executable_blob_are_denied(self):
+        self.migrate()
+        name = next(iter(self.shared_data))
+        path = self.root / name
+        path.unlink()
+        path.symlink_to("elsewhere")
+        self.commit()
+        with self.assertRaises(ValueError):
+            validate_caller(self.caller)
+        path.unlink()
+        self.write(name, self.shared_data[name])
+        path.chmod(0o755)
+        self.commit()
+        with self.assertRaises(ValueError):
+            validate_caller(self.caller)
+
+    def test_object_read_failure_is_denied(self):
+        self.migrate()
+        actual = git_output
+        def fail_blob(root, *arguments):
+            if arguments[:2] == ("cat-file", "blob"):
+                raise subprocess.CalledProcessError(1, "git cat-file")
+            return actual(root, *arguments)
+        with mock.patch.dict(globals(), git_output=fail_blob):
+            with self.assertRaises(subprocess.CalledProcessError):
+                validate_caller(self.caller)
+
+    def test_object_corruption_is_denied(self):
+        self.migrate()
+        actual = git_output
+        def corrupt_blob(root, *arguments):
+            data = actual(root, *arguments)
+            if arguments[:2] == ("cat-file", "blob"):
+                return bytes([data[0] ^ 1]) + data[1:]
+            return data
+        with mock.patch.dict(globals(), git_output=corrupt_blob):
+            with self.assertRaisesRegex(ValueError, "Git identity"):
+                validate_caller(self.caller)
 
 
 if __name__ == "__main__":
