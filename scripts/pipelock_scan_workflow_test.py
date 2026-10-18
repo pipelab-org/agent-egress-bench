@@ -107,6 +107,12 @@ def _install_refs(job):
             start = run.rfind("\n", 0, match.start()) + 1
             end = run.find("\n", match.end())
             line = run[start:] if end == -1 else run[start:end]
+            # $(...) and backticks are command substitutions (POSIX). They run
+            # even inside the one GOBIN assignment this workflow uses.
+            # ${NAME} is the parameter expansion that workflow actually has.
+            if "$(" in line or "`" in line:
+                refs.append("<unverifiable shell install>")
+                continue
             preceding = [s.strip() for s in run[:start].splitlines()]
             safe_prefix = all(not s or s.startswith("#") or s == "set -euo pipefail" for s in preceding)
             try:
@@ -346,6 +352,14 @@ class PipelockScanWorkflowTest(unittest.TestCase):
         job = drift_job()
         job["steps"][-1]["run"] = f"go install '{MODULE}@${{PIPELOCK_REV}}'"
         cases += (("single-quoted variable is literal", job, "installed scanner revision"),)
+        for gobin in (
+            'GOBIN="$(echo /tmp)" ',
+            'GOBIN="`echo /tmp`" ',
+            'GOBIN="${RUNNER_TEMP:-$(echo /tmp)}/bin" ',
+        ):
+            job = drift_job()
+            job["steps"][-1]["run"] = "set -euo pipefail\n" + gobin + job["steps"][-1]["run"]
+            cases += ((f"command substitution in GOBIN: {gobin!r}", job, "installed scanner revision"),)
         for name, job, expected in cases:
             with self.subTest(name):
                 problems = producer_pin_problems(job)
