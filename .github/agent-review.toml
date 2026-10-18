@@ -1,0 +1,13 @@
+[review]
+instructions = """
+Review the tool-neutral egress corpus, validators, runners, and result contracts.
+Preserve existing case IDs and merged semantics. Check schema and artifact parity,
+transport requirements, scoring denominators, and distinct blocked, allowed,
+unsupported, incomplete, and error outcomes. Never turn a product-specific result
+or expected score into a mandatory validation gate. Check fake-secret fixtures,
+path traversal, subprocess boundaries, timeout handling, provenance, and result
+pointer integrity. Use docs/GOVERNANCE.md and docs/SPEC.md as contract owners.
+"""
+
+[ignore]
+glob = ["**/go.sum", "**/package-lock.json"]

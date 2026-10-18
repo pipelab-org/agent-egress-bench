@@ -1,0 +1,33 @@
+name: PR-Agent review
+
+on:
+  # Default-branch code only; the identity gate and fork admission are tested.
+  issue_comment: # zizmor: ignore[dangerous-triggers]
+    types: [created]
+
+permissions: {}
+
+jobs:
+  review:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.actor == 'luckyPipewrench' &&
+      github.actor_id == '142104046' &&
+      github.run_attempt == '1' &&
+      github.triggering_actor == 'luckyPipewrench' &&
+      github.event.comment.user.login == 'luckyPipewrench' &&
+      github.event.comment.user.id == 142104046 &&
+      github.event.comment.user.type == 'User' &&
+      github.event.comment.author_association == 'MEMBER' &&
+      github.event.issue.pull_request &&
+      contains(fromJSON('["/review","/review deep"]'), github.event.comment.body)
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: pipelab-org/agent-review/.github/workflows/agent-review-reusable.yaml@856e474c1697f3897ccaa156f083e0b9504196e0 # main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_API_KEY_2: ${{ secrets.ANTHROPIC_API_KEY_2 }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

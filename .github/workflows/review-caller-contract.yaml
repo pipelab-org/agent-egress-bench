@@ -4,107 +4,84 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - '.github/workflows/pr-review.yaml'
+      - '.github/workflows/agent-review.yaml'
+      - '.github/agent-review.toml'
       - '.github/workflows/review-caller-contract.yaml'
-      - 'scripts/test_pr_review_workflow.py'
+      - 'scripts/check_agent_review_workflow.py'
   pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
-      - '.github/workflows/pr-review.yaml'
+      - '.github/workflows/agent-review.yaml'
+      - '.github/agent-review.toml'
       - '.github/workflows/review-caller-contract.yaml'
-      - 'scripts/test_pr_review_workflow.py'
+      - 'scripts/check_agent_review_workflow.py'
   push:
     branches: [main]
     paths:
-      - '.github/workflows/pr-review.yaml'
+      - '.github/workflows/agent-review.yaml'
+      - '.github/agent-review.toml'
       - '.github/workflows/review-caller-contract.yaml'
-      - 'scripts/test_pr_review_workflow.py'
+      - 'scripts/check_agent_review_workflow.py'
 
 permissions:
   contents: read
 
 jobs:
-  bootstrap:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Check out proposed contract for unprivileged installation tests
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - name: Test proposed caller and contract without provider secrets
-        run: python3 -I scripts/test_pr_review_workflow.py
   contract:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check out trusted default-branch caller validator
+      - name: Check out the caller validator
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: luckyPipewrench/agent-egress-bench
-          ref: ${{ github.sha }}
+          # Bootstrap tests run proposed code without secrets. Target validation
+          # always runs the default-branch copy, independently of proposed code.
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          allow-unsafe-pr-checkout: true
           path: trusted-validator
           persist-credentials: false
-          sparse-checkout: scripts/test_pr_review_workflow.py
+          sparse-checkout: scripts/check_agent_review_workflow.py
           sparse-checkout-cone-mode: false
-      - name: Check out proposed caller as data
+      - name: Check out proposed policy as data
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          # Proposed workflows are bounded data; no proposed code is executed.
           allow-unsafe-pr-checkout: true
           path: proposed
           persist-credentials: false
-          filter: blob:none
           sparse-checkout: |
-            .github/workflows/pr-review.yaml
+            .github/workflows/agent-review.yaml
+            .github/agent-review.toml
             .github/workflows/review-caller-contract.yaml
           sparse-checkout-cone-mode: false
-      - name: Validate proposed caller with trusted test code
-        id: validate
-        run: |
-          python3 -I - <<'PY'
-          import importlib.util
-          import os
-          import pathlib
-          import unittest
-
-          validator = pathlib.Path("trusted-validator/scripts/test_pr_review_workflow.py")
-          spec = importlib.util.spec_from_file_location("trusted_caller", validator)
-          module = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(module)
-          module.WORKFLOW = pathlib.Path("proposed/.github/workflows/pr-review.yaml")
-          reviewer_sha = module.validate_caller(module.WORKFLOW)
-          module.validate_contract(
-              pathlib.Path("proposed/.github/workflows/review-caller-contract.yaml")
-          )
-          suite = unittest.defaultTestLoader.loadTestsFromModule(module)
-          result = unittest.TextTestRunner(verbosity=2).run(suite)
-          if not result.wasSuccessful():
-              raise SystemExit(1)
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"reviewer_sha={reviewer_sha}\n")
-          PY
-      - name: Check out immutable reviewer and its security tests
+      - name: Check approved source and checking workflow before loading shared code
+        id: policy
+        run: python3 -I trusted-validator/scripts/check_agent_review_workflow.py --root proposed --output "$GITHUB_OUTPUT"
+      - name: Check out the approved immutable shared validator
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: luckyPipewrench/pipelock
-          ref: ${{ steps.validate.outputs.reviewer_sha }}
+          repository: pipelab-org/agent-review
+          ref: ${{ steps.policy.outputs.reviewer_sha }}
           path: trusted-reviewer
           persist-credentials: false
-      - name: Install pinned reviewer test dependencies
-        working-directory: trusted-reviewer
+          sparse-checkout: scripts/agent_review_contract.py
+          sparse-checkout-cone-mode: false
+      - name: Validate caller and profile with approved shared code
+        env:
+          REVIEW_SOURCE_SHA: ${{ steps.policy.outputs.reviewer_sha }}
         run: |
-          python3 -m venv .review-test-venv
-          .review-test-venv/bin/python -m pip install --require-hashes \
-            -r .github/actions/pr-review/requirements.txt \
-            -r .github/requirements-pr-review-test.txt
-      - name: Verify shared reviewer workflow protections
-        working-directory: trusted-reviewer
-        run: >-
-          .review-test-venv/bin/python -m unittest
-          scripts.pr_review_test.WorkflowPackagingTest
-          scripts.pr_review_test.FailureDirectionTest.test_review_job_timeout_exceeds_the_wall_clock_with_finalization_margin
+          python3 -I - <<'PYCODE'
+          import os
+          import pathlib
+          import runpy
+
+          contract = runpy.run_path("trusted-reviewer/scripts/agent_review_contract.py")
+          root = pathlib.Path("proposed")
+          contract["validate_caller"](
+              root / ".github/workflows/agent-review.yaml", os.environ["REVIEW_SOURCE_SHA"],
+          )
+          contract["load_profile"](root / ".github/agent-review.toml")
+          print("Review caller and profile contract passed")
+          PYCODE
