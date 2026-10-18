@@ -22,6 +22,7 @@ event condition.
 """
 
 import re
+import shlex
 import unittest
 from pathlib import Path
 
@@ -77,12 +78,11 @@ INSTALL_REF = re.compile(r"cmd/pipelock@(\S+)")
 
 
 def _action_steps(job):
-    """Steps that use the Pipelock action under any known owner."""
-    owners = {o.lower() for o in ACTION_OWNERS}
+    """All Pipelock action steps, including unrecognized owners."""
     found = []
     for step in job.get("steps") or []:
         match = ACTION_USES.match(str(step.get("uses") or ""))
-        if match and match.group("owner").lower() in owners:
+        if match:
             found.append((step, match.group("ref")))
     return found
 
@@ -99,10 +99,31 @@ def _install_refs(job):
         if "go install" not in run:
             continue
         env = step.get("env") or {}
-        for ref in INSTALL_REF.findall(run):
+        for match in INSTALL_REF.finditer(run):
+            ref = match.group(1)
+            # This workflow uses one direct install after `set -euo pipefail`.
+            # Reject other shell prefixes instead of interpreting arbitrary
+            # shell that could replace the step's pinned environment value.
+            start = run.rfind("\n", 0, match.start()) + 1
+            end = run.find("\n", match.end())
+            line = run[start:] if end == -1 else run[start:end]
+            preceding = [s.strip() for s in run[:start].splitlines()]
+            safe_prefix = all(not s or s.startswith("#") or s == "set -euo pipefail" for s in preceding)
+            try:
+                words = shlex.split(line)
+            except ValueError:
+                words = []
+            if words and words[0].startswith("GOBIN="):
+                words = words[1:]
+            if not safe_prefix or len(words) != 3 or words[:2] != ["go", "install"]:
+                refs.append("<unverifiable shell install>")
+                continue
             ref = ref.strip('"').strip("'")
             expansion = re.fullmatch(r"\$\{?(\w+)\}?", ref)
             if expansion:
+                if "'" in line:
+                    refs.append("<quoted literal variable>")
+                    continue
                 key = expansion.group(1)
                 ref = str(env[key]).strip() if key in env else f"<unset ${key}>"
             refs.append(ref)
@@ -127,6 +148,9 @@ def producer_pin_problems(job):
     if len(installs) != 1:
         return [f"expected exactly one `go install ...cmd/pipelock@<commit>`, found {len(installs)}: {installs!r}"]
     step, action_ref = actions[0]
+    owner = ACTION_USES.fullmatch(str(step["uses"])).group("owner")
+    if owner.lower() not in {o.lower() for o in ACTION_OWNERS}:
+        return [f"unrecognized Pipelock action owner {owner!r}; expected {owners}"]
     version = str((step.get("with") or {}).get("version") or "")
     commit = RELEASE_COMMITS.get(version)
     if commit is None:
@@ -310,8 +334,18 @@ class PipelockScanWorkflowTest(unittest.TestCase):
              drift_job(extra_actions=(("luckyPipewrench/pipelock@" + new, "3.7.0"),)), "found 2 Pipelock action steps"),
             ("second action step, other owner",
              drift_job(extra_actions=(("pipelab-org/pipelock@" + new, "3.7.0"),)), "found 2 Pipelock action steps"),
-            ("action owner unknown", drift_job(owner="someone-else"), "no Pipelock action step found"),
+            ("action owner unknown", drift_job(owner="someone-else"), "unrecognized Pipelock action owner"),
+            ("second action step, unknown owner",
+             drift_job(extra_actions=(("someone-else/pipelock@main", "3.7.0"),)), "found 2 Pipelock action steps"),
         )
+        for prefix in (f"export PIPELOCK_REV={new}\n", f"PIPELOCK_REV={new}\n",
+                       f"PIPELOCK_REV={new} ", f"read PIPELOCK_REV\n"):
+            job = drift_job()
+            job["steps"][-1]["run"] = prefix + job["steps"][-1]["run"]
+            cases += ((f"shell changes the revision: {prefix!r}", job, "installed scanner revision"),)
+        job = drift_job()
+        job["steps"][-1]["run"] = f"go install '{MODULE}@${{PIPELOCK_REV}}'"
+        cases += (("single-quoted variable is literal", job, "installed scanner revision"),)
         for name, job, expected in cases:
             with self.subTest(name):
                 problems = producer_pin_problems(job)
