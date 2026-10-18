@@ -115,8 +115,15 @@ def _install_refs(job):
                 continue
             preceding = [s.strip() for s in run[:start].splitlines()]
             safe_prefix = all(not s or s.startswith("#") or s == "set -euo pipefail" for s in preceding)
+            # shlex.split keeps runs of ;|&<>() inside a word, so a GOBIN
+            # assignment can hide another assignment. punctuation_chars=True
+            # separates that published set. split() has no such argument;
+            # whitespace_split and empty commenters are what split() uses.
             try:
-                words = shlex.split(line)
+                lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+                lexer.whitespace_split = True
+                lexer.commenters = ""
+                words = list(lexer)
             except ValueError:
                 words = []
             if words and words[0].startswith("GOBIN="):
@@ -360,6 +367,21 @@ class PipelockScanWorkflowTest(unittest.TestCase):
             job = drift_job()
             job["steps"][-1]["run"] = "set -euo pipefail\n" + gobin + job["steps"][-1]["run"]
             cases += ((f"command substitution in GOBIN: {gobin!r}", job, "installed scanner revision"),)
+        # No space around the operator: shlex.split used to swallow it into
+        # the one allowed GOBIN word and then trust the step environment.
+        for operator in (";", "&&", "|", "||", "&", ">", "<", "(", ")"):
+            prefix = f"GOBIN=/x{operator}PIPELOCK_REV={new}{operator} "
+            job = drift_job()
+            job["steps"][-1]["run"] = "set -euo pipefail\n" + prefix + job["steps"][-1]["run"]
+            cases += ((f"shell operator inside GOBIN: {prefix!r}", job, "installed scanner revision"),)
+        for gobin in (
+            'GOBIN="${RUNNER_TEMP}/bin" ',
+            "GOBIN=/tmp ",
+            'GOBIN="/x;PIPELOCK_REV=ignored" ',
+        ):
+            job = drift_job()
+            job["steps"][-1]["run"] = "set -euo pipefail\n" + gobin + job["steps"][-1]["run"]
+            cases += ((f"ordinary GOBIN assignment: {gobin!r}", job, None),)
         for name, job, expected in cases:
             with self.subTest(name):
                 problems = producer_pin_problems(job)
