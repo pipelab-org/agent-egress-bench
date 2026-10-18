@@ -73,7 +73,9 @@ RELEASE_COMMITS = {
 # The repository moved from luckyPipewrench to pipelab-org; GitHub owner names
 # are case-insensitive, so either owner in any case names the same action.
 ACTION_OWNERS = ("luckyPipewrench", "pipelab-org")
-ACTION_USES = re.compile(r"^(?P<owner>[^/@]+)/pipelock@(?P<ref>.*)$")
+ACTION_USES = re.compile(
+    r"^(?P<owner>[^/@]+)/pipelock(?:/[^@]+)?@(?P<ref>.*)$", re.IGNORECASE
+)
 INSTALL_REF = re.compile(r"cmd/pipelock@(\S+)")
 
 
@@ -347,6 +349,10 @@ class PipelockScanWorkflowTest(unittest.TestCase):
              drift_job(extra_actions=(("luckyPipewrench/pipelock@" + new, "3.7.0"),)), "found 2 Pipelock action steps"),
             ("second action step, other owner",
              drift_job(extra_actions=(("pipelab-org/pipelock@" + new, "3.7.0"),)), "found 2 Pipelock action steps"),
+            ("second action step, repository name in another case",
+             drift_job(extra_actions=(("luckyPipewrench/Pipelock@main", "3.7.0"),)), "found 2 Pipelock action steps"),
+            ("second action step, subpath action",
+             drift_job(extra_actions=(("luckyPipewrench/pipelock/sub@main", "3.7.0"),)), "found 2 Pipelock action steps"),
             ("action owner unknown", drift_job(owner="someone-else"), "unrecognized Pipelock action owner"),
             ("second action step, unknown owner",
              drift_job(extra_actions=(("someone-else/pipelock@main", "3.7.0"),)), "found 2 Pipelock action steps"),
