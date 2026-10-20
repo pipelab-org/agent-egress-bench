@@ -15,6 +15,8 @@ The separate [`containment-profile.json`](containment-profile.json) launches [en
 
 The live example targets Pipelock 3.7.0. Its request policy refuses POST, PUT, PATCH, DELETE, MKCOL, MOVE, COPY, PROPPATCH, LOCK, and UNLOCK on `allowed-package-registry.test` and `mirror.fixture.example.com`, which the corpus treats as package-fetch hosts. This policy was selected after inspecting case outcomes. Reports using it must disclose that the WebDAV block comes from request policy, not payload detection. The managed launcher enables TLS interception with the runner fixture CA so these rules can inspect HTTPS methods. GET remains available subject to the other configured checks; methods outside this deny list aren't automatically refused.
 
+The portable runner passes this source configuration through `--target-config`. Its `raw-summary.json` records `target_config_ref` and `target_config_sha256`, and the publication lockup includes that path and digest. The digest identifies the configuration containing these method rules; it doesn't establish payload detection. See [result provenance](../../docs/RESULTS-USE.md).
+
 [`historical/pipelock-benchmark-3.5.0.yaml`](historical/pipelock-benchmark-3.5.0.yaml) preserves the earlier configuration byte for byte. It's a frozen reproduction input, not a second maintained example. Historical runs must also retain their original binary, release pin, profile, and corpus revision; combining this file with the current profile doesn't reproduce a 3.5.0 run.
 
 ## Portable release run

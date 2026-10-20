@@ -1,4 +1,5 @@
-"""Exercise the real example launcher processes with a controlled child."""
+"""Check example release inputs and launcher processes with a controlled child."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,12 +13,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ExampleIdentityTest(unittest.TestCase):
+    """Keep the launcher inputs aligned with the reviewed release."""
+
+    @staticmethod
+    def release_pin(path):
+        """Read data through the portable runner's strict release-pin parser."""
+        entrypoint = (ROOT / 'scripts/run-pipelock-gauntlet.sh').read_text()
+        start = entrypoint.index('parse_release_pin() {')
+        end = entrypoint.index('\nrequire_uint()', start)
+        fields = ('PIPELOCK_REPO', 'PIPELOCK_TAG', 'PIPELOCK_VERSION',
+                  'PIPELOCK_ASSET_SHA256_AMD64', 'PIPELOCK_ASSET_SHA256_ARM64')
+        shell = ('set -Eeuo pipefail\n' + entrypoint[start:end] +
+                 '\nparse_release_pin "$1"\n' +
+                 'printf "%s\\n" ' + ' '.join('"$' + field + '"' for field in fields))
+        result = subprocess.run(['bash', '-c', shell, 'bash', str(path)],
+                                check=True, capture_output=True, text=True, timeout=5)
+        return dict(zip(fields, result.stdout.splitlines(), strict=True))
+
     def test_profiles_match_portable_release_identity(self):
+        """Require profiles and configuration documentation to name the pinned release."""
         example = ROOT / 'examples/pipelock'
-        pin = dict(line.split('=', 1) for line in
-                   (example / 'release.env').read_text().splitlines()
-                   if line and not line.startswith('#'))
+        pin = self.release_pin(example / 'release.env')
         version = pin['PIPELOCK_VERSION']
+        self.assertIn('# This example requires Pipelock ' + version + '.',
+                      (example / 'pipelock-benchmark.yaml').read_text())
         self.assertEqual(pin['PIPELOCK_TAG'], 'v' + version)
         for filename in ('tool-profile.json', 'containment-profile.json'):
             with self.subTest(profile=filename):
@@ -26,6 +45,35 @@ class ExampleIdentityTest(unittest.TestCase):
         containment = json.loads((example / 'containment-profile.json').read_text())
         self.assertEqual(containment['expected_version_output'],
                          'pipelock version ' + version)
+
+    def test_release_pin_uses_production_syntax(self):
+        """Reject unsupported pin syntax instead of silently normalizing it."""
+        original = (ROOT / 'examples/pipelock/release.env').read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'release.env'
+            path.write_bytes(original)
+            self.assertIn('PIPELOCK_VERSION', self.release_pin(path))
+            malformed = {
+                'CRLF': original.replace(b'\n', b'\r\n'),
+                'leading-space': original.replace(b'PIPELOCK_VERSION=', b' PIPELOCK_VERSION='),
+                'export': original.replace(b'PIPELOCK_VERSION=', b'export PIPELOCK_VERSION='),
+                'nonassignment': original + b'unexpected\n',
+                'indented-comment': original + b'  # comment\n',
+                'duplicate': original + b'PIPELOCK_VERSION=0.0.0\n',
+            }
+            for label, payload in malformed.items():
+                with self.subTest(syntax=label):
+                    path.write_bytes(payload)
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        self.release_pin(path)
+
+    def test_historical_configuration_bytes(self):
+        """Preserve the configuration captured before the example release update."""
+        # SHA-256 of examples/pipelock/pipelock-benchmark.yaml at
+        # d81b48b1ef5401d3b178e02f623edeca39313ebc, the source of this snapshot.
+        historical = ROOT / 'examples/pipelock/historical/pipelock-benchmark-3.5.0.yaml'
+        self.assertEqual(hashlib.sha256(historical.read_bytes()).hexdigest(),
+                         'cb689ffeddf660ec986c91750961974e00b94e3e278747a6e11e6e81eb233ffc')
 
 
 class LauncherLifecycleTest(unittest.TestCase):
