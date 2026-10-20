@@ -11,6 +11,23 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class ExampleIdentityTest(unittest.TestCase):
+    def test_profiles_match_portable_release_identity(self):
+        example = ROOT / 'examples/pipelock'
+        pin = dict(line.split('=', 1) for line in
+                   (example / 'release.env').read_text().splitlines()
+                   if line and not line.startswith('#'))
+        version = pin['PIPELOCK_VERSION']
+        self.assertEqual(pin['PIPELOCK_TAG'], 'v' + version)
+        for filename in ('tool-profile.json', 'containment-profile.json'):
+            with self.subTest(profile=filename):
+                profile = json.loads((example / filename).read_text())
+                self.assertEqual(profile['tool_version'], version)
+        containment = json.loads((example / 'containment-profile.json').read_text())
+        self.assertEqual(containment['expected_version_output'],
+                         'pipelock version ' + version)
+
+
 class LauncherLifecycleTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

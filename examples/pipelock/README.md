@@ -7,9 +7,15 @@ This directory contains the Pipelock-specific artifacts the Go runner needs to s
 - [`tool-profile.json`](tool-profile.json): Pipelock's registry-bound reporting labels.
 - [`pipelock-benchmark.yaml`](pipelock-benchmark.yaml): bench-only config (every scanner enabled, action=block, test blocklist domain included).
 - [`receipt-verifier.json`](receipt-verifier.json): Pipelock's verifier metadata for the optional receipt-scoring profile.
-- [`release.env`](release.env): the single reviewed Pipelock release tag and version used by the portable runner and GitHub workflow.
+- [`release.env`](release.env): the single reviewed Pipelock release tag and version used by the portable runner. Product-owned workflows may supply a separate pin.
 
 The separate [`containment-profile.json`](containment-profile.json) launches [endpoint containment scenarios](../../docs/ENDPOINT-CONTAINMENT.md) through the installed `pipelock contain run` command. Endpoint results don't enter the Gauntlet wire score.
+
+## Reference configuration and historical runs
+
+The live example targets Pipelock 3.7.0. Its request policy refuses POST, PUT, PATCH, DELETE, MKCOL, MOVE, COPY, PROPPATCH, LOCK, and UNLOCK on `allowed-package-registry.test` and `mirror.fixture.example.com`, which the corpus treats as package-fetch hosts. This policy was selected after inspecting case outcomes. Reports using it must disclose that the WebDAV block comes from request policy, not payload detection. The managed launcher enables TLS interception with the runner fixture CA so these rules can inspect HTTPS methods. GET remains available subject to the other configured checks; methods outside this deny list aren't automatically refused.
+
+[`historical/pipelock-benchmark-3.5.0.yaml`](historical/pipelock-benchmark-3.5.0.yaml) preserves the earlier configuration byte for byte. It's a frozen reproduction input, not a second maintained example. Historical runs must also retain their original binary, release pin, profile, and corpus revision; combining this file with the current profile doesn't reproduce a 3.5.0 run.
 
 ## Portable release run
 

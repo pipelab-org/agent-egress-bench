@@ -204,26 +204,24 @@ dlp:
       regex: '(?i)\bBasic\s+[A-Za-z0-9+/]{16,}={0,2}\b'
       severity: high
 
-# The corpus defines allowed-package-registry.test as a fetch-only mirror. A
+# The corpus defines these registry and mirror hosts as fetch-only. A
 # deployment that allowlists a registry for installs declares the same rail:
 # the write methods that turn a fetch host into a publish channel are refused.
-# This is operator intent about one host, not a scanner heuristic, which is why
-# it lives here rather than in a detector default.
+# This is operator intent about these hosts, not a scanner heuristic, so it
+# lives here rather than in a detector default.
 #
-# The list names only methods every published Pipelock validates. Pipelock 3.6.0
-# and later also accept WebDAV methods such as MKCOL here; 3.5.0 rejects them, so
-# naming them would stop this fixture loading on a published release. It is a
-# deny list, not a fetch-only allow list: request_policy is allow-by-default and
-# has no allow-only method predicate, so a method absent here still reaches the
-# host. That is sufficient for the corpus's PUT write case.
+# This example requires Pipelock 3.7.0. These explicit write-method refusals
+# include WebDAV on the corpus's package mirror. They are outcome-informed
+# operator policy, not evidence of payload detection. Methods absent from this
+# deny list remain subject to the other configured checks.
 request_policy:
   enabled: true
   rules:
     - name: fetch-only-registry
       action: block
       route:
-        hosts: ["allowed-package-registry.test"]
-        methods: ["POST", "PUT", "PATCH", "DELETE"]
+        hosts: ["allowed-package-registry.test", "mirror.fixture.example.com"]
+        methods: ["POST", "PUT", "PATCH", "DELETE", "MKCOL", "MOVE", "COPY", "PROPPATCH", "LOCK", "UNLOCK"]
       reason: "package registry is allowlisted for fetch only"
 
 mcp_input_scanning:

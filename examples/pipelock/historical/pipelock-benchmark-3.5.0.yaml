@@ -1,0 +1,275 @@
+mode: balanced
+
+agents:
+  _default:
+    budget:
+      # The current corpus capability is authenticated per-subject accounting,
+      # which this single-session stdio adapter does not claim. Keep the
+      # session-wide limiter unlimited so it cannot decide unrelated cases.
+      max_tool_calls_per_session: 0
+      window_minutes: 1440
+      dow_action: block
+
+scan_api:
+  listen: "127.0.0.1:9990"
+  auth:
+    bearer_tokens: ["bench-test-token"]
+  max_body_bytes: 1048576
+  kinds:
+    url: true
+    dlp: true
+    prompt_injection: true
+    tool_call: true
+
+fetch_proxy:
+  listen: "127.0.0.1:9991"
+  timeout_seconds: 30
+  max_response_mb: 10
+  monitoring:
+    max_url_length: 2000
+    entropy_threshold: 4.0
+    # Use an effectively unbounded request rate for deterministic benchmark
+    # runs. In Pipelock, zero is normalized to the product default rather than
+    # disabling the limiter.
+    max_requests_per_minute: 10000
+    max_data_per_minute: 0
+    blocklist:
+      - "*.pastebin.com"
+      - "*.hastebin.com"
+      - "*.paste.ee"
+      - "*.transfer.sh"
+      - "*.file.io"
+      - "*.requestbin.com"
+      - "exfil-collector.example.net"
+
+forward_proxy:
+  enabled: true
+  sni_verification: true
+
+websocket_proxy:
+  enabled: true
+  max_message_bytes: 1048576
+  max_concurrent_connections: 128
+  max_connection_seconds: 60
+  idle_timeout_seconds: 15
+
+response_scanning:
+  enabled: true
+  action: block
+
+request_body_scanning:
+  enabled: true
+  action: block
+  max_body_bytes: 1048576
+  scan_headers: true
+  header_mode: all
+  content_entropy_enabled: true
+  content_entropy_action: block
+  content_entropy_threshold: 5.0
+  content_entropy_min_length: 32
+
+a2a_scanning:
+  enabled: true
+  action: block
+  scan_agent_cards: true
+
+# Enable private-IP SSRF scoring for the ssrf-bypass cases (loopback, RFC1918,
+# link-local). The runner's fixtures reach pipelock via the allowlisted
+# aeb-fixture.test hostname below, so raw-IP-literal SSRF attacks are still
+# blocked while fixture traffic is permitted.
+internal:
+  - 127.0.0.0/8
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 169.254.0.0/16
+
+ssrf:
+  ip_allowlist:
+    - 127.0.0.2/32
+
+# The Go runner brings up local TLS, WebSocket, and DNS fixtures on 127.0.0.1
+# (see runner/fixture/). For WebSocket DLP cases the adapter rewrites the
+# corpus target hostname to `aeb-fixture.test` and lets pipelock connect via
+# the hostname rather than the literal loopback IP. Combined with the
+# trusted_domains entry below, this lets pipelock reach the fixture while
+# still rejecting SSRF attacks that target the raw loopback IP directly
+# (trusted_domains rejects IP literals at the matcher, and the override
+# map is never consulted for IP-literal lookups).
+# Opaque entropy attack cases use reserved untrusted sink hostnames mapped to
+# 127.0.0.2. The ssrf.ip_allowlist entry above makes that local fixture IP
+# reachable without adding the sink hostnames to trusted_domains, so destination
+# trust does not exempt entropy scanning.
+dns:
+  host_overrides:
+    aeb-fixture.test:
+      - 127.0.0.1
+    # The hostname-exfiltration false-positive control keeps its declared
+    # hostname (the runner swaps only its dynamic fixture port) and resolves to
+    # the ip_allowlist'd sink loopback, NOT to a trusted_domains entry. The
+    # allowlist makes the local fixture reachable while leaving subdomain-entropy
+    # / hostname-exfiltration scanning ACTIVE, so an allow here is the detector
+    # correctly declining a false positive rather than a destination-trust
+    # exemption. The HTTP fixture serves this address on its paired sink listener.
+    cdn.fixture.example.com:
+      - 127.0.0.2
+    ws-exfil-sink.test:
+      - 127.0.0.2
+    a2a-exfil-sink.test:
+      - 127.0.0.2
+    # TLS-required allowed-channel cases preserve these benchmark-owned synthetic
+    # hostnames while the runner replaces only the port with its local HTTPS
+    # fixture. The hosts stand in for commonly-allowed destinations and resolve
+    # to loopback so benchmark traffic never leaves the machine.
+    allowed-code-api.test:
+      - 127.0.0.1
+    allowed-chat-webhook.test:
+      - 127.0.0.1
+    # Fetch-only package registry stand-in for the allowlisted-helper write cases.
+    # Resolves to loopback like the other allowed-channel hosts; trusted_domains
+    # exempts ordinary private-IP SSRF and opaque body/frame content entropy.
+    # URL/path/query entropy, DLP, method policy, and the non-overridable
+    # metadata/address floor still apply.
+    allowed-package-registry.test:
+      - 127.0.0.1
+    # Allowlisted package-mirror stand-in shared by the WebDAV collection-path
+    # attack, the nested-target relay attack and the mirror package-fetch
+    # false-positive control. The runner keeps this hostname and swaps only the
+    # port to its local TLS fixture, so without this override the lookup fails
+    # in public DNS and the case is refused before any detector sees it.
+    mirror.fixture.example.com:
+      - 127.0.0.1
+    # Resolve the benign agent-card hostnames to a public IP so private-IP SSRF
+    # checks evaluate them (public -> allowed) instead of failing closed on an
+    # unresolvable synthetic host. A real deployment's cards use resolvable hosts.
+    weather.example.com:
+      - 93.184.216.34
+    security.example.com:
+      - 93.184.216.34
+trusted_domains:
+  - aeb-fixture.test
+  - allowed-code-api.test
+  - allowed-chat-webhook.test
+  - allowed-package-registry.test
+  # The mirror cases carry no opaque body or frame payload; hostname trust does
+  # not exempt their URL/path/query entropy or nested-target SSRF checks.
+  - mirror.fixture.example.com
+
+dlp:
+  patterns:
+    # Benchmark calibration overlays:
+    # These patterns match synthetic corpus fixtures, not production vendor
+    # credential formats. They are for reproducible agent-egress-bench runs
+    # only; do not copy them into production Pipelock configs.
+    - name: "Benchmark SendGrid API Key"
+      regex: 'SG\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'
+      severity: critical
+    - name: "Benchmark GitHub Token"
+      regex: 'ghp_[A-Za-z0-9_]{30,}'
+      severity: critical
+    - name: "Benchmark Stripe Key"
+      regex: 'sk_live_[A-Za-z0-9_]{16,}'
+      severity: critical
+    - name: "Benchmark Bearer JWT"
+      regex: 'Bearer\s+ey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{6,}'
+      severity: high
+    - name: "Benchmark AWS Secret Key"
+      regex: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+      severity: critical
+    - name: "Ethereum Address"
+      regex: '0x[0-9a-fA-F]{40}\b'
+      severity: high
+    - name: "Credit Card Number"
+      regex: '\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'
+      severity: high
+    - name: "Social Security Number"
+      regex: '\b\d{3}-\d{2}-\d{4}\b'
+      severity: low
+    - name: "IBAN"
+      regex: '\b(?:AL|AD|AT|AZ|BH|BY|BE|BA|BR|BG|CR|HR|CY|CZ|DK|DO|TL|EE|FO|FI|FR|GE|DE|GI|GR|GL|GT|HU|IS|IQ|IE|IL|IT|JO|KZ|XK|KW|LV|LB|LI|LT|LU|MK|MT|MR|MU|MC|MD|ME|NL|NO|PK|PS|PL|PT|QA|RO|LC|SM|ST|SA|RS|SC|SK|SI|ES|SE|CH|TN|TR|UA|AE|GB|VA|VG)\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b'
+      severity: high
+    - name: "Credential in URL"
+      regex: '\b(?:password|passwd|secret|token|apikey|api_key|api-key)\s*=\s*[^\s&]{4,}'
+      severity: high
+    - name: "Credential in URL Userinfo"
+      regex: '(?i)https?://[^\s/?#@:]+:[^\s/?#@]{8,}@'
+      severity: high
+    - name: "Raw Secp256k1 Private Key Parameter"
+      regex: '(?i)[?&;](?:pk|priv(?:ate)?_?key|key)=[0-9a-f]{64}\b'
+      severity: critical
+    - name: "Suspicious Punycode Host Label"
+      regex: '(?i)(?:^|[./])xn--[a-z0-9-]{32,}(?:[./:?#]|$)'
+      severity: high
+    - name: "Basic Authorization Credentials"
+      regex: '(?i)\bBasic\s+[A-Za-z0-9+/]{16,}={0,2}\b'
+      severity: high
+
+# The corpus defines allowed-package-registry.test as a fetch-only mirror. A
+# deployment that allowlists a registry for installs declares the same rail:
+# the write methods that turn a fetch host into a publish channel are refused.
+# This is operator intent about one host, not a scanner heuristic, which is why
+# it lives here rather than in a detector default.
+#
+# The list names only methods every published Pipelock validates. Pipelock 3.6.0
+# and later also accept WebDAV methods such as MKCOL here; 3.5.0 rejects them, so
+# naming them would stop this fixture loading on a published release. It is a
+# deny list, not a fetch-only allow list: request_policy is allow-by-default and
+# has no allow-only method predicate, so a method absent here still reaches the
+# host. That is sufficient for the corpus's PUT write case.
+request_policy:
+  enabled: true
+  rules:
+    - name: fetch-only-registry
+      action: block
+      route:
+        hosts: ["allowed-package-registry.test"]
+        methods: ["POST", "PUT", "PATCH", "DELETE"]
+      reason: "package registry is allowlisted for fetch only"
+
+mcp_input_scanning:
+  enabled: true
+  action: block
+
+mcp_tool_scanning:
+  enabled: true
+  action: block
+  detect_drift: true
+
+mcp_tool_policy:
+  enabled: false
+
+mcp_session_binding:
+  enabled: true
+  unknown_tool_action: block
+
+tool_chain_detection:
+  enabled: true
+  action: block
+  pattern_overrides:
+    env-then-network: block
+    read-then-exec: block
+    read-write-send: block
+  custom_patterns:
+    - name: write-then-exec
+      sequence: ["write", "exec"]
+      severity: critical
+      action: block
+
+seed_phrase_detection:
+  enabled: true
+
+address_protection:
+  enabled: true
+  action: block
+
+reverse_proxy:
+  # The proxy adapter does not exercise Pipelock's reverse-proxy listener.
+  # Leaving its fixed example ports enabled makes two independent benchmark
+  # runs collide before any declared case starts.
+  enabled: false
+
+logging:
+  format: json
+  output: stdout
+  include_allowed: false
+  include_blocked: true
