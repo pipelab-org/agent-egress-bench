@@ -1,8 +1,10 @@
 .PHONY: check-test-layout check-neutrality-boundary preflight check-citation check-case-immutability check-case-governance check-frozen-schema-immutability check-schema-catalog check-schema-discovery-feed check-schema-copies check-docs check-operator-kit check-contracts check-public-contracts check-claim-language check-readme-categories check-diagrams check-capability-registry-history check-scorecard-workflow test-label-boundary test-runner-parity test-runner-image test-tool-profile-reader-contracts stats stats-update check-stats cases-manifest check-gauntlet-site check-result-pointers test-capability-registry test-validate test-runner test-receipt-generator test-control-evidence-vectors test-control-evidence-verifier test-control-evidence-v1-verifier test-control-evidence-g2-authentication test-pipelock-example test-release-build test-release-workflow test-workflows test-release-snapshot release-snapshot validate-cases validate
 
-TMPDIR := $(HOME)/.cache/pipelock-tmp
-GOCACHE := $(HOME)/.cache/go-build
-export TMPDIR GOCACHE
+TMPDIR ?= /tmp
+ifeq ($(strip $(TMPDIR)),)
+$(error TMPDIR must name a nonempty temporary directory)
+endif
+export TMPDIR
 
 # Default fixture for local validator/renderer contract tests. A workflow that
 # generates a real artifact must override this with that exact output path.
@@ -51,7 +53,7 @@ check-contracts:
 	@$(MAKE) --no-print-directory test-tool-profile-reader-contracts
 
 test-tool-profile-reader-contracts:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_go_consumer_tests.py runner TestLoadProfileRefusesNMinusOneProfileWithMachineReadableVersion
 	@PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_go_consumer_tests.py validate TestProfileFileRefusesNMinusOneSchemaBeforeLegacyFields
 	@PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_go_consumer_tests.py control-evidence/v0/verifier TestV0VerifierRetainsToolProfileV1AndV3Readers
@@ -73,7 +75,7 @@ check-schema-discovery-feed:
 # Keep the human tables, machine-readable cross-field contracts, JSON Schemas,
 # scorer, and validator on one active definition.
 check-public-contracts:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts/generate_result_state_bindings_test.py
 	@PYTHONDONTWRITEBYTECODE=1 python3 scripts/generate_result_state_bindings.py
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts/check_public_contracts_test.py
@@ -137,7 +139,7 @@ check-schema-copies:
 	@PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_schema_copies.py
 
 test-capability-registry:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd capability-registry && go test -race -count=1 ./...
 
 check-capability-registry-history:
@@ -145,7 +147,7 @@ check-capability-registry-history:
 	@PYTHONDONTWRITEBYTECODE=1 python3 scripts/validate_capability_registry_history.py --base "$$(git merge-base origin/main HEAD)"
 
 test-label-boundary:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd runner && go test -count=1 -run '^(TestLabelBoundary|TestClaimsDoNotChangeMeasurement)' .
 
 test-runner-parity:
@@ -180,12 +182,12 @@ check-readme-categories:
 # diagram must say the same thing, and the hand-exported hero PNG must come
 # from the committed SVG.
 check-diagrams:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts/render_diagrams_test.py
 	@python3 scripts/render_diagrams.py --check
 
 test-validate:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd validate && go test -race -count=1 ./...
 
 # `validate` is an alias for validate-cases. It must stay .PHONY: a directory
@@ -195,34 +197,34 @@ test-validate:
 validate: validate-cases
 
 validate-cases:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@bin="$(TMPDIR)/aeb-validate"; trap 'rm -f "$$bin"' EXIT; \
 	(cd validate && go build -o "$$bin" .); \
 	"$$bin" cases cases
 
 test-runner:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd runner && go test -race -count=1 ./...
 
 test-receipt-generator:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd receipts/v0/conformance/_generator && go test -race -count=1 ./...
 
 test-control-evidence-vectors:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd control-evidence/v0/conformance/_generator && go test -race -count=1 ./... && go run . --verify
 
 test-control-evidence-verifier:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd control-evidence/v0/verifier && go test -race -count=1 ./...
 
 test-control-evidence-v1-verifier:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd control-evidence/v1/conformance/_generator && go test -race -count=1 ./... && go run . --verify
 	@cd control-evidence/v1/verifier && go test -race -count=1 ./...
 
 test-control-evidence-g2-authentication:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd control-evidence/g2/authentication && go test -race -count=1 ./...
 
 test-pipelock-example:
@@ -249,7 +251,7 @@ cases-manifest:
 # Print canonical statistics from the runner's loaded corpus. Unlike the
 # manifest, this reports category and verdict metadata from each loaded case.
 stats:
-	@mkdir -p "$(TMPDIR)" "$(GOCACHE)"
+	@mkdir -p "$(TMPDIR)"
 	@cd runner && go run . --stats --cases ../cases
 
 # Refresh the committed, reader-facing stats snapshot from the runner loaders.

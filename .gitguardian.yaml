@@ -5,7 +5,7 @@
 #
 # Only cases/ is excluded. All other directories (validate/,
 # examples/, docs/, schemas/, .github/) are fully scanned.
-# No real credentials exist anywhere in this repository.
+# Real credentials are prohibited. Report suspected leaks through SECURITY.md.
 
 paths-ignore:
   - "cases/**"

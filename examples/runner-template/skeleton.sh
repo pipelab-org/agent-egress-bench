@@ -30,10 +30,10 @@ RESULT_SCHEMA_VERSION=$(python3 "$SCRIPT_DIR/../../scripts/artifact_contracts.py
 RESULT_STATE_CONTRACT="$SCRIPT_DIR/../../contracts/result-states-v${RESULT_SCHEMA_VERSION}.json"
 SCORING_VERSION=$(jq -er '.scoring_version | select(type == "string" and length > 0)' "$RESULT_STATE_CONTRACT")
 # --- Emit a single JSONL result line to stdout ---
-# This function is complete. Copy it as-is.
+# Emit one compact JSON object per line.
 emit_result() {
     local case_id="$1" expected="$2" actual="$3" score="$4" evidence="$5" notes="$6"
-    jq -n \
+    jq -cn \
         --arg case_id "$case_id" \
         --arg tool "$TOOL" \
         --arg tool_version "$TOOL_VERSION" \
@@ -82,7 +82,9 @@ emit_result() {
 echo "error: TODO 1 not implemented: start your tool" >&2
 exit 1
 
-# --- Main loop ---
+# This raw-JSON starting loop is incomplete: it also visits component files.
+# Replace it with logical-case loading before a full-corpus run;
+# multi-file snapshots are components, not independent case documents.
 passed=0
 failed=0
 na=0
@@ -125,28 +127,9 @@ while read -r case_file; do
     # This is where your tool-specific logic goes. Read the payload,
     # build a request, send it through your tool, observe the result.
     #
-    # For HTTP proxy tools:
-    #   1. Extract method, url, headers, body from the payload
-    #   2. Build a curl command targeting your proxy
-    #   3. Check the HTTP status code
-    #   4. Map status to verdict:
-    #      - 403 or 502 with block marker => "block"
-    #      - 200, 301, 404, etc.          => "allow"
-    #      - 000 (connection failed)      => "error"
-    #
-    # For MCP proxy tools:
-    #   1. Extract jsonrpc_messages from the payload
-    #   2. Pipe each message through your MCP proxy
-    #   3. Check if the message was forwarded or blocked
-    #   4. Map the observation to verdict:
-    #      - Message withheld or error response => "block"
-    #      - Message forwarded                  => "allow"
-    #      - Transport failure                  => "error"
-    #
-    # For response scanning:
-    #   1. Start a local HTTP server returning the response_body
-    #   2. Fetch through your proxy
-    #   3. Check if the response was flagged
+    # Follow docs/RUNNER.md's surface-specific delivery and verdict rules.
+    # Status codes, silence and process failure alone do not prove containment.
+    # Only emit observed allow/block with the required request-correlated proof.
     #
     # Replace both placeholder values below with your implementation. Measured
     # allow/block verdicts require result_state=observed; other outcomes must use

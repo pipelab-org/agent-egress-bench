@@ -95,9 +95,7 @@ before using any command, replace its identity fields, and retain that profile
 with the result.
 
 ```bash
-export TMPDIR="$HOME/.cache/pipelock-tmp"
-export GOCACHE="$HOME/.cache/go-build"
-mkdir -p "$TMPDIR" "$GOCACHE"
+export TMPDIR="${TMPDIR:-/tmp}"
 cp examples/runner-template/tool-profile-template.json tool-profile.json
 (cd runner && go build -o "$TMPDIR/aeb-gauntlet" .)
 ```

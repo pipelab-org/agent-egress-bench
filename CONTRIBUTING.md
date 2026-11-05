@@ -7,20 +7,24 @@ Contributions welcome: new test cases, runners for your security tool, documenta
 1. Pick the right category directory under `cases/` (see [docs/SPEC.md](docs/SPEC.md) for the full list)
 2. Follow the naming, field, and payload rules in [docs/SPEC.md](docs/SPEC.md)
 3. Check immutability, provenance, and synthetic-fixture requirements in [docs/GOVERNANCE.md](docs/GOVERNANCE.md)
-4. Run the required checks:
+4. Validate the new files with `make validate-cases`.
+5. Generate the decision records for the new cases and review the diff:
 
-```bash
-export TMPDIR="$HOME/.cache/pipelock-tmp"
-export GOCACHE="$HOME/.cache/go-build"
-mkdir -p "$TMPDIR" "$GOCACHE"
-(cd validate && go build -o "$TMPDIR/aeb-validate" .)
-"$TMPDIR/aeb-validate" cases cases
-make cases-manifest
-make stats-update
-make preflight
-```
+   ```bash
+   PYTHONDONTWRITEBYTECODE=1 python3 scripts/generate_case_governance_records.py
+   ```
 
-### Do NOT change existing cases
+   `make check-case-governance` requires one record per logical case. See [Per-case governance decision records](docs/GOVERNANCE.md#per-case-governance-decision-records).
+6. Give the changed corpus a new version. Adding, removing or re-expecting a scored case needs a new label in `cases/CORPUS_VERSION` and `runner/summary.go`, a new active-set artifact under `corpora/active-sets/v1/`, and a new final entry in `ci/corpus-versions.json` with its case count and digests. Never edit existing ledger entries or artifacts. [Corpus version identity](docs/GOVERNANCE.md#corpus-version-identity) owns the rules.
+7. Regenerate the manifest and statistics, review the generated changes, then run the full gate:
+
+   ```bash
+   make cases-manifest
+   make stats-update
+   make preflight
+   ```
+
+### Existing cases are immutable
 
 Follow the immutability and supersession process in [docs/GOVERNANCE.md](docs/GOVERNANCE.md). If you disagree with an expected verdict, open an issue before changing corpus content.
 
@@ -41,17 +45,7 @@ Start from the [runner template](examples/runner-template/) and follow [docs/ADO
 
 ## Validation
 
-All case files must pass validation before merge:
-
-```bash
-export TMPDIR="$HOME/.cache/pipelock-tmp"
-export GOCACHE="$HOME/.cache/go-build"
-mkdir -p "$TMPDIR" "$GOCACHE"
-(cd validate && go build -o "$TMPDIR/aeb-validate" .)
-"$TMPDIR/aeb-validate" cases cases
-```
-
-CI runs this automatically on every pull request along with CodeQL security analysis and dependency review.
+`make validate-cases` checks case structure. Before submitting any change, run `make preflight`; CI runs the same gate on every pull request, along with CodeQL security analysis and dependency review.
 
 ## Governance
 

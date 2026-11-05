@@ -9,6 +9,7 @@ A practical guide for building a runner that connects your security tool to the 
 - The `cases/` directory from this repo
 - A `tool-profile.json` declaring your tool's capabilities
 - `bash` (the skeleton is a bash script, but you can write your runner in any language)
+- Python 3, used by the skeleton to read the artifact contract
 
 ## Can my tool be integrated?
 
@@ -20,19 +21,19 @@ Use this check before writing code:
 | CONNECT-capable forward proxy | Yes | Prove your runner can send requests through it as an HTTPS forward proxy |
 | Reverse proxy or API gateway with `listen` and `upstream` routing | Not today | Write a custom runner or leave the unmatched transports unsupported |
 | In-process SDK or library | Not today | Wrap it in a runner-owned service or leave the unmatched transports unsupported |
-| MCP gateway | Not as a generic adapter today | Tool-specific MCP stdio or MCP HTTP commands can be driven now; a protocol-first MCP gateway adapter is planned |
+| MCP gateway | Narrow Streamable HTTP support | Use `--adapter mcp-gateway` and a plugin. See [GATEWAY-ADAPTER.md](../../docs/GATEWAY-ADAPTER.md) for supported case shapes and limitations. |
 
 A result is scoreable only when its adapter proves delivery of the exact wire
 input and observes a verdict. Claims are registry-backed reporting labels. They
-do not select cases or change a score, denominator, sufficiency decision, or
-publication decision. No exact route is `unreachable`, not N/A, and makes the
-run insufficient.
+don't select cases or change a score, denominator, sufficiency decision, or
+publication decision. No exact route is `unreachable`, not N/A, and makes `measurement_status` incomplete.
 
 ## Step 1: Create your tool profile
 
-Copy `tool-profile-template.json` to your runner directory and fill it in.
+Run the copy commands from `examples/runner-template/`. Create a runner directory, copy `tool-profile-template.json` into it and fill it in.
 
 ```bash
+mkdir -p ../your-tool
 cp tool-profile-template.json ../your-tool/tool-profile.json
 ```
 
@@ -67,7 +68,7 @@ Pick them from the exact capability-registry snapshot named below:
 | `domain_blocklist` | Block known-bad domains |
 | `entropy` | Detect high-entropy strings (potential encoded secrets) |
 | `encoding_evasion` | Detect encoded/obfuscated secrets |
-| `benign` | Required to run benign (false-positive) cases |
+| `benign` | Labels benign traffic used for false-positive testing; it doesn't enable or select cases. |
 | `a2a_scan` | Detect attacks in A2A messages |
 | `a2a_card_poison` | Detect poisoned A2A Agent Cards |
 | `operation_policy` | Enforce method-aware policy on allowlisted hosts (for example, fetch-only registries refuse writes) |
@@ -100,7 +101,7 @@ cp tool-profile-template.json ../your-tool/tool-profile.json
 The skeleton handles:
 - Reading the tool profile
 - Declaring delivery routes and result-state proof
-- Iterating over all case files
+- A starting loop for single-file JSON cases; complete logical-case discovery and multi-file temporal execution still need implementation.
 - Emitting JSONL results
 - Printing a summary
 
@@ -154,16 +155,7 @@ The pattern is:
 3. Send the case payload through the proxy to the runner fixture
 4. Check the proxy response status code and body for the tool's block signal
 
-Verdict mapping from HTTP status codes:
-
-| Status | Verdict |
-|--------|---------|
-| 403 | `block` (explicit deny) |
-| 502 with block marker | `block` (upstream denied) |
-| 200, 301, 404, etc. | `allow` (request went through) |
-| 000 (connection refused) | `error` |
-
-Your tool might use different status codes. Document your mapping.
+Use the [observable verdict rules](../../docs/RUNNER.md#observable-verdict-rules). A status code, missing response or nonzero process exit alone doesn't prove a security decision. An observed allow requires exact delivery and the applicable upstream proof. An observed block requires the surface's attributable denial or withholding proof. A missing route is `unreachable`; missing delivery or verdict proof is an error in active result output. Transport and process failures remain errors.
 
 ### MCP cases (mcp_stdio, mcp_http)
 
@@ -173,15 +165,7 @@ MCP cases provide `jsonrpc_messages` in the payload. Each message is a JSON-RPC 
 2. Feed each JSON-RPC message through the proxy (write to stdin, read from stdout for stdio mode)
 3. Check if the message was forwarded, modified, or blocked
 
-Verdict mapping for MCP:
-
-| Observation | Verdict |
-|-------------|---------|
-| Message not forwarded | `block` |
-| JSON-RPC error response with deny code | `block` |
-| Process exits with non-zero status | `block` |
-| Message forwarded unchanged | `allow` |
-| Transport failure | `error` |
+Use the same surface-specific observation rules for MCP. A generic protocol error or process exit alone doesn't establish a security denial.
 
 ### Response scanning cases
 
@@ -204,53 +188,19 @@ Do not fake results. If you cannot observe the verdict, say so.
 
 ### Check JSONL format
 
-Each line of your runner's stdout must be valid JSON with the required fields:
+Build the validator from the same benchmark revision and validate the profile and result rows against the canonical case metadata:
 
 ```bash
-# Run your runner, capture output
-bash run.sh /path/to/your-tool > results.jsonl 2>summary.txt
-
-# Verify every line is valid JSON
-jq empty results.jsonl
-
-# Check required fields exist on every line
-jq -s -e 'if all(.[]; has("schema_version") and has("scoring_version") and has("case_id") and has("tool") and has("tool_version") and has("expected_verdict") and has("actual_verdict") and has("score") and has("evidence") and has("notes")) then true else error("missing required result field") end' results.jsonl > /dev/null
+(cd ../../validate && go build -o aeb-validate .)
+../../validate/aeb-validate profile tool-profile.json
+../../validate/aeb-validate results results.jsonl ../../cases
 ```
 
-### Check verdicts are valid
-
-```bash
-# All actual_verdict values must be one of: block, allow, not_applicable, unreachable, error
-jq -r '.actual_verdict' results.jsonl | sort -u
-# Expected output: some subset of {allow, block, error, not_applicable, unreachable}
-
-# All score values must be one of: pass, fail, not_applicable, error
-jq -r '.score' results.jsonl | sort -u
-```
-
-### Check scoring is correct
-
-```bash
-# Every case where actual == expected should be "pass"
-jq -r 'select(.actual_verdict == .expected_verdict and .score != "pass" and .score != "not_applicable") | .case_id' results.jsonl
-# Should print nothing
-
-# Every case where actual != expected (and neither is error/N/A/unreachable) should be "fail"
-jq -r 'select(.actual_verdict != .expected_verdict and .actual_verdict != "error" and .actual_verdict != "not_applicable" and .actual_verdict != "unreachable" and .score != "fail") | .case_id' results.jsonl
-# Should print nothing
-```
+Run these commands from `examples/your-tool/`. The validator checks the active artifact versions, registry reference, allowed result states and case-bound scoring rules. Active result rows use `block`, `allow`, `unreachable` or `error` as the observed verdict and `pass`, `fail` or `error` as the score. Budget-block cases additionally require the documented timing evidence; matching binary verdicts alone don't establish a pass.
 
 ### Check case coverage
 
-```bash
-# Total cases in corpus
-find ../../cases -name '*.json' -type f | wc -l
-
-# Total results emitted
-wc -l < results.jsonl
-
-# These should match
-```
+Emit exactly one result for each logical case in the pinned source catalog, subject to any governed active-set selection. A temporal MCP drift directory is one case; its component JSON files aren't additional cases. Use the Go runner's logical loaders and `cases/MANIFEST.txt` as the discovery reference, and verify IDs as well as counts. The shell skeleton's raw JSON loop is incomplete for a full-corpus runner and must be replaced before publishing a full-corpus result. `make stats` reports loader-backed corpus counts.
 
 ## Common mistakes
 

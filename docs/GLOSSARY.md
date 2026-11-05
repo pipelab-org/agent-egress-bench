@@ -28,7 +28,7 @@ scoreable.
 
 ### Case
 
-A single test scenario in the corpus. Contains an attack payload (or benign traffic), the expected verdict, severity, capability requirements, and metadata. Each case is a JSON file that encodes the payload and expected verdict. Some cases require runner-side setup (see [RUNNER.md](RUNNER.md) for details). See [SPEC.md](SPEC.md) for the schema.
+A logical test scenario with an expected verdict and metadata. It is either one JSON file or a multi-file MCP drift directory containing `case.yaml` and its referenced snapshots. Some cases require runner-side setup. [SPEC.md](SPEC.md) owns the formats.
 
 ### Verdict
 
@@ -49,7 +49,7 @@ A registry-defined label describing what a case exercises. Examples: `url_dlp`, 
 
 ### Transport
 
-How traffic reaches the security tool. One of: `fetch_proxy` (HTTP fetch endpoint), `http_proxy` (CONNECT tunnel), `mcp_stdio` (MCP subprocess wrapping), `mcp_http` (MCP HTTP proxy), `websocket`. Each case declares its expected transport. Tools declare which transports they support.
+The declared wire path used to deliver a case: `fetch_proxy`, `http_proxy`, `mcp_stdio`, `mcp_http`, `websocket` or `a2a`. The adapter must prove that exact path and observe a verdict before the case is scoreable. [SPEC.md](SPEC.md) and [RUNNER.md](RUNNER.md) own the delivery contracts.
 
 ### DLP (Data Loss Prevention)
 

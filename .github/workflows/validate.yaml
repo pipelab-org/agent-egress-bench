@@ -18,17 +18,10 @@ permissions:
   contents: read
 
 jobs:
-  # Do NOT give this job a display `name:`. The check reports under the display
-  # name when one is set, and `validate` is a required status check, so renaming
-  # it leaves the requirement permanently unsatisfied and the pull request
-  # unmergeable.
+  # The required check context is validate; keep its name stable.
   validate:
     runs-on: ubuntu-latest
-    # Raised from 10 after this job gained a real GoReleaser build. Measured on
-    # run 2026-08-15T15:09Z it takes 5m19s, against roughly 3m before, so half
-    # the old budget is now spent and a loaded runner would start cancelling a
-    # job that is working correctly. A cancelled release-layout check reads as a
-    # failure nobody can reproduce locally.
+    # Includes preflight and the release archive integration check.
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,9 +129,7 @@ jobs:
       - name: Collect Go coverage
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.cache/pipelock-tmp" "$HOME/.cache/go-build"
-          export TMPDIR="$HOME/.cache/pipelock-tmp"
-          export GOCACHE="$HOME/.cache/go-build"
+          export TMPDIR="$RUNNER_TEMP"
           for module in runner validate capability-registry; do
             ( cd "$module" && go test -race -count=1 -coverprofile=coverage.out ./... )
           done
@@ -152,11 +143,7 @@ jobs:
           files: runner/coverage.out,validate/coverage.out,capability-registry/coverage.out
           disable_search: true
           fail_ci_if_error: false
-          # Codecov stopped accepting unauthenticated uploads from this repo:
-          # every push logged "Token required - not valid tokenless upload" and
-          # the README badge read "unknown" while the tests were green. The job
-          # already requests `id-token: write`, so OIDC authenticates the upload
-          # without storing a long-lived secret.
+          # Authenticate uploads with the job's OIDC token.
           use_oidc: true
 
   # The shared gate above is the normal push contract. Keep this narrower job
@@ -177,9 +164,8 @@ jobs:
 
       - name: Test validate module at its declared minimum
         run: |
-          mkdir -p "$HOME/.cache/pipelock-tmp" "$HOME/.cache/go-build"
           cd validate
-          TMPDIR="$HOME/.cache/pipelock-tmp" GOCACHE="$HOME/.cache/go-build" go test -race -count=1 ./...
+          go test -race -count=1 ./...
 
   govulncheck:
     name: Known vulnerabilities in called code

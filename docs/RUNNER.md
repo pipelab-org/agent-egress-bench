@@ -51,8 +51,8 @@ One JSON object per case, written to stdout (one per line, JSONL):
   "schema_version": 6,
   "scoring_version": "2.8",
   "case_id": "url-dlp-aws-key-001",
-  "tool": "pipelock",
-  "tool_version": "0.3.6",
+  "tool": "example-tool",
+  "tool_version": "1.0.0",
   "capability_registry": {
     "id": "aeb.core-capabilities",
     "format": 1,
@@ -285,34 +285,13 @@ whether opaque high-entropy content is blocked when sent to an untrusted sink.
 
 ### Frame reassembly and cross-message correlation
 
-Two different obligations sit behind multi-frame cases, and conflating them makes one look
-unbounded when it is not.
+WebSocket cases distinguish fragments of one message from separate complete messages. A runner preserves the case's declared frame order, opcodes and FIN boundaries when delivering it through the target. RFC 6455 defines how continuation frames form one logical message.
 
-**Fragment reassembly is protocol-defined and mandatory.** A frame carrying `fin: false` followed by
-`continuation` frames is one logical message under RFC 6455, and the message ends at the frame with
-`fin: true`. A runner reassembles that message and scans the reassembled content. The boundary comes
-from the wire, so this needs no window, no timer, and no eviction policy. Three corpus cases have this
-shape, including a benign one.
-
-**Cross-message correlation is a policy, and the corpus states its bound.** Separate complete
-messages, each with `fin: true`, are distinct messages that a tool may nonetheless correlate to catch
-a credential split across them. A conforming runner MUST correlate at least **two consecutive
-complete messages within a single connection**. That is the widest span any current corpus case
-requires, and a runner correlating less will report a miss that is a configuration gap rather than a
-detection failure.
-
-Beyond that minimum a runner MAY correlate further, subject to two bounds it must be able to state:
-
-- **Eviction.** Correlation state is per connection and ends when the connection closes. A runner
-  that retains it across connections is answering for traffic the case never sent.
-- **Overflow.** A correlation buffer is attacker-influenced, so it must have a fixed ceiling on
-  retained bytes or messages. On reaching it, a runner evicts oldest-first and continues scanning.
-  Growing without limit turns a detection feature into a memory-exhaustion path, which is a failure
-  direction, not a thoroughness setting.
+Some cases split sensitive content across complete messages on one connection. The target's observed decision is scored against the case expectation; the runner doesn't implement detection on the target's behalf or exempt a measured miss because a target lacks cross-message correlation. Detector buffering and eviction mechanisms are implementation choices. A report discloses the tested configuration and its limits.
 
 **The availability direction is scored.** `fp-ws-clean-multiframe-016` is a benign three-fragment
-message that must be ALLOWED after reassembly. A tool that treats any multi-frame sequence as
-suspicious fails that case. Correlating more aggressively is not free, and the corpus measures both
+message that must be allowed after reassembly. A tool that treats any multi-frame sequence as
+suspicious fails that case. Correlating more aggressively isn't free, and the corpus measures both
 directions.
 
 ## Result State Check
@@ -410,10 +389,12 @@ From the repository root:
 ```bash
 (cd runner && go run . \
   --report ../continuous-gauntlet-artifacts \
-  --report-output ../continuous-gauntlet-artifacts/run-report.md)
+  --report-output ../run-report.md)
 ```
 
 Use `--report-output -` to write the report to standard output.
+
+The buyer report checks consistency within the supplied directory. It doesn't authenticate that directory, establish evidence custody or provide an atomic snapshot while another process can change the files. Keep retained inputs read-only and render the report to a separate analysis location. Independent execution and custody require evidence beyond the report.
 
 The renderer reads these artifacts when present:
 
@@ -529,32 +510,7 @@ Reproducibility:
 - Per-case rows are sorted by `case_id` and the runner emits no timestamps in the profile. A relying party can reproduce a published profile by running the same command and comparing the retained fields. Byte-for-byte equality also requires the corpus Git state and tool-version command output to match.
 - The Gauntlet summary includes a `date` by default. For byte-stable summary JSON, set `AEB_GAUNTLET_SUMMARY_DATE` to a fixed RFC3339 value, or set it to an empty string to omit the field.
 
-Example shape for a tool-specific benchmark run:
-
-> For the pinned Pipelock release, `./scripts/run-pipelock-gauntlet.sh` is the normal operator command. The long form below is an advanced reference for adapter and receipt-profile development.
-
-```bash
-cd runner && go build -o /tmp/aeb-gauntlet . && cd ..
-export PIPELOCK_BIN=/path/to/pipelock
-export PIPELOCK_BENCH_CONFIG="$PWD/examples/pipelock/pipelock-benchmark.yaml"
-/tmp/aeb-gauntlet \
-  --adapter proxy \
-  --scan-token bench-test-token \
-  --mcp-cmd "\"$PIPELOCK_BIN\" mcp proxy --config \"$PIPELOCK_BENCH_CONFIG\" --env AEB_MCP_STDIO_UPSTREAM_ADDR -- sh ./examples/pipelock/mcp-stdio-upstream-bridge.sh" \
-  --managed-proxy-cmd './examples/pipelock/start-proxy-for-benchmark.sh "$PIPELOCK_BIN"' \
-  --managed-mcp-http-cmd './examples/pipelock/start-mcp-http-for-benchmark.sh "$PIPELOCK_BIN"' \
-  --fixtures \
-  --seeded-blocklist-domain exfil-collector.example.net \
-  --cases ./cases \
-  --profile examples/pipelock/tool-profile.json \
-  --output /tmp/gauntlet.json \
-  --emit-receipt-profile /tmp/pipelock.json \
-  --receipt-verifier-file examples/pipelock/receipt-verifier.json \
-  --timeout 15s
-
-# Inspect the emitted profile.
-sha256sum /tmp/pipelock.json
-```
+Configure a supported adapter for the target and add `--emit-receipt-profile` to retain the optional receipt profile. Set `--receipt-verifier-file` when the tool provides a verifier. [The runner template](../examples/runner-template/) describes integration; [the Pipelock example](../examples/pipelock/#advanced-runner-invocation) shows one product-specific implementation.
 
 `profiles/pipelock.json` is a retained historical artifact from Pipelock 3.1.0 on
 corpus v2.0.0, pinned by `profiles/retained-artifacts.json`. A run against a
@@ -563,9 +519,8 @@ against that file is not a reproduction check.
 
 That retained declaration is an integrity pin, not a reproduction recipe. It
 records the artifact's digest, its tool version, and its corpus version, but no
-corpus or runner source revision and no tool binary digest, and the command above
-runs whatever runner the current checkout contains. Reproducing this profile
-byte-for-byte therefore needs provenance the repository does not carry for it.
+corpus or runner source revision and no tool binary digest, and a new run uses the runner in its selected checkout. Reproducing this profile
+byte-for-byte therefore needs provenance the repository doesn't carry for it.
 Treat it as evidence of the run it names and verify it by its recorded digest.
 
 Published profile reproduction should name the exact tool binary and corpus commit

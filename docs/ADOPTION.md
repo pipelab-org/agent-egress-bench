@@ -66,12 +66,7 @@ Tag or date your results directories by tool version so readers can track progre
 
 If your tool catches attack patterns not in the corpus, add them. More cases make the benchmark more useful for everyone, including your competitors. That is the point.
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full guide. The short version:
-
-1. Create a JSON file in the right `cases/` subdirectory
-2. Follow the [case schema](SPEC.md) (all required fields, fake secrets only)
-3. Run `make validate` from the repository root
-4. Open a PR
+Follow the complete case procedure in [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-case). It covers the [case schema](SPEC.md), fake secrets, decision records, the corpus version and validation.
 
 ### What makes a good case
 

@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -43,6 +44,18 @@ class CheckContractsTest(unittest.TestCase):
         skeleton = (ROOT / "examples/runner-template/skeleton.sh").read_text(encoding="utf-8")
         self.assertIn("artifact_contracts.py", skeleton)
         self.assertIsNone(re.search(r"schema_version:\s*[0-9]+", skeleton))
+
+    def test_skeleton_emitter_writes_one_json_object_per_line(self):
+        source = (ROOT / "examples/runner-template/skeleton.sh").read_text(encoding="utf-8")
+        emitter = source[source.index("emit_result() {"):].split("\n}", 1)[0] + "\n}"
+        script = (
+            "set -eu\nTOOL=example-tool\nTOOL_VERSION=1.0.0\n"
+            "CAPABILITY_REGISTRY='{}'\nRESULT_SCHEMA_VERSION=6\nSCORING_VERSION=2.8\n"
+            + emitter + "\nemit_result example-case block error error '{}' 'no observation'\n"
+        )
+        result = subprocess.run(["bash", "-c", script], text=True, capture_output=True, check=True)
+        self.assertEqual(len(result.stdout.splitlines()), 1)
+        self.assertEqual(json.loads(result.stdout)["case_id"], "example-case")
 
     def test_reads_typed_grouped_go_constant(self):
         with tempfile.TemporaryDirectory() as directory:

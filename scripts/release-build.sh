@@ -61,9 +61,9 @@ fi
 identity=.release/release-identity.json
 rm -rf "$dist" .release
 mkdir -p .release
-export TMPDIR="$HOME/.cache/pipelock-tmp"
-export GOCACHE="$HOME/.cache/go-build"
-mkdir -p "$TMPDIR" "$GOCACHE"
+: "${TMPDIR:=/tmp}"
+export TMPDIR
+mkdir -p "$TMPDIR"
 python3 scripts/release_build.py prepare \
   --tag "$tag" \
   --version "$version" \
