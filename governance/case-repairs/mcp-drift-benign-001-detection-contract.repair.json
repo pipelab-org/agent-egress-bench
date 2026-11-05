@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "case_id": "mcp-drift-benign-001",
+  "reason": "Correct notes to require observable decisions and portable receipt fields, preserving the retained verdicts, snapshots, expected receipts, and immutable case semantics.",
+  "files": [
+    {
+      "path": "cases/mcp-drift/mcp-drift-benign-001/after.json",
+      "base_sha256": "33003cdd36eb47437091be0566a92f6db67aae8879491ad1f40fd9df9c343bd0",
+      "repaired_sha256": "33003cdd36eb47437091be0566a92f6db67aae8879491ad1f40fd9df9c343bd0"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-benign-001/before.json",
+      "base_sha256": "0fd5cdb89921733516d736b2288e297a67a9e167876544b37aeb1e856f259bb9",
+      "repaired_sha256": "0fd5cdb89921733516d736b2288e297a67a9e167876544b37aeb1e856f259bb9"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-benign-001/case.yaml",
+      "base_sha256": "3c6321717c6febc5783f096fc500e57bff35eb6f98d018b88803bb9de590ead1",
+      "repaired_sha256": "3c6321717c6febc5783f096fc500e57bff35eb6f98d018b88803bb9de590ead1"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-benign-001/expected.json",
+      "base_sha256": "eb980dde6fb35b5e7bc192014fdb943205c637047d28a90bd2d8d03483e90f98",
+      "repaired_sha256": "eb980dde6fb35b5e7bc192014fdb943205c637047d28a90bd2d8d03483e90f98"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-benign-001/notes.md",
+      "base_sha256": "6e170db4386c40128348cd510ee3f8f5912cf7409eea270ed80cf1b9c7eb3dad",
+      "repaired_sha256": "7a0379c6fdb01c007da673c2a272565231e8c24ebf730e184a9517b744dca7f7"
+    }
+  ]
+}

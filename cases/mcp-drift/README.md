@@ -80,23 +80,22 @@ source: <citation, real-world exploit reference>
 
 ## Detection contract
 
-For each case, a conforming detector configured with rug-pull / chain detection
-enabled MUST:
+For each case, a conforming detector configured for the capabilities the case requires MUST:
 
-1. Load `before.json` and establish a baseline (one entry per tool, hashing
-   `description + inputSchema`).
-2. Load `after.json` and compare against the baseline.
-3. Emit a receipt whose portable decision fields match `expected.json`:
+1. Process `before.json`, then `after.json`, in the same logical session, preserving the fixture's tool and server identities.
+2. Produce the observable decision specified by `case.yaml` and `expected.json` for the change or cross-server relationship exercised by the fixture. The contract does not prescribe a hash function, baseline representation, storage layout, or detection algorithm.
+3. For receipt-aware conformance, emit a receipt whose portable decision fields match `expected.json`:
 
    - `action_record.verdict`
+   - `action_record.transport`
    - `action_record.layer`
    - `action_record.pattern`
    - `action_record.severity`
    - Any `action_record.intent` value documented in `expected.json`
 
-Signature/key fields are not pinned across vendors. Each vendor signs with its
-own production key; the conformance test is over the **decision semantics**,
-not the signature provenance.
+Signature/key fields are not pinned across vendors. Each vendor signs with its own production key. Conformance concerns the decision semantics, not a shared signing identity.
+
+The generic execution adapter validates `expected.json` but scores only the observed binary verdict. It maps a fixture's `warn` expectation to benign `allow`; a pass on that path does not establish warning detection or field-by-field receipt conformance.
 
 ## Cross-vendor reactability
 

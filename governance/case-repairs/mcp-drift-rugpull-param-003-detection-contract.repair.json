@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "case_id": "mcp-drift-rugpull-param-003",
+  "reason": "Correct notes to require observable decisions and portable receipt fields, preserving the retained verdicts, snapshots, expected receipts, and immutable case semantics.",
+  "files": [
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/after.json",
+      "base_sha256": "e75f1b0fc99665af27e7d858bd0f1dc82806d26449a965b91c051648b438f559",
+      "repaired_sha256": "e75f1b0fc99665af27e7d858bd0f1dc82806d26449a965b91c051648b438f559"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/before.json",
+      "base_sha256": "f8b8c960b9123d1ba62ad8334353eadfc46a0daa741b51d261fea34edf417d29",
+      "repaired_sha256": "f8b8c960b9123d1ba62ad8334353eadfc46a0daa741b51d261fea34edf417d29"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/case.yaml",
+      "base_sha256": "3636abc989353fa65d3e93e51d9da1e95c5ae252b1a7e20e9f0ba7a5397d82cd",
+      "repaired_sha256": "3636abc989353fa65d3e93e51d9da1e95c5ae252b1a7e20e9f0ba7a5397d82cd"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/expected.json",
+      "base_sha256": "1a4c1455d39ae6e5db6420e8ddb2765ce85912a7638995cdd825ae73cbc845f6",
+      "repaired_sha256": "1a4c1455d39ae6e5db6420e8ddb2765ce85912a7638995cdd825ae73cbc845f6"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/notes.md",
+      "base_sha256": "f0a8786350706d3ccdbb23f287a6527c4cb9e06c6fb4f2d28e2dc4320299c2b6",
+      "repaired_sha256": "2c09ab6feb0d153fdf47c8cae33568bcf50ca32ac3119fc3fa1d7ab6e6199492"
+    }
+  ]
+}

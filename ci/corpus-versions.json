@@ -87,6 +87,14 @@
       "active_set_sha256": "fb39f284d30ce4f46c2d889b5ddcd95dd418ef5e54596e3465950ed41a839902",
       "recorded_on": "2026-10-07",
       "note": "Adds an SVG script injection response and its static SVG companion. Active set carries forward the v2.14.0 exclusions."
+    },
+    {
+      "corpus_version": "v2.16.0",
+      "case_count": 268,
+      "benchmark_manifest_sha256": "678c6133674cd97f661d3bdd3ade828887f02cf3346bd9d27f1176c143b89260",
+      "active_set_sha256": "9e95ce07933c874605006c1461f2786a529ba2bb48971027e59407ddf8532237",
+      "recorded_on": "2026-11-04",
+      "note": "Corrects four MCP drift case notes to require observable decisions and portable receipt fields. Scored payloads, expected receipts, selected case IDs and exclusions are unchanged."
     }
   ]
 }

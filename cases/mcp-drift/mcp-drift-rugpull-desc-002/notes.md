@@ -2,11 +2,7 @@
 
 ## Attack pattern
 
-The canonical MCP rug-pull, as demonstrated by Invariant Labs in 2025. The
-attacker controls the MCP server, ships an innocuous tool, waits for operator
-approval, then mutates the description to carry instructions for the LLM.
-Because the description sits in the LLM's context but rarely in the operator's
-UI, the post-approval mutation goes undetected without a baseline hash.
+The canonical MCP rug-pull, as demonstrated by Invariant Labs in 2025. The attacker controls the MCP server, presents an innocuous tool, waits for operator approval, then changes its description to carry instructions for the model. Detecting that post-approval change requires relating the later definition to the earlier observation; a baseline hash is one possible implementation.
 
 The mutated description in `after.json` is a representative payload:
 
@@ -22,37 +18,22 @@ environment if a runner accidentally executes the payload.
 
 A correct detector observes:
 
-1. `before.json`: store hash `H_before = SHA256(description_before ||
-   inputSchema_before)` for tool `get_weather` and the description text.
-2. `after.json`: compute `H_after = SHA256(description_after ||
-   inputSchema_after)`. `H_after != H_before`.
-3. Compare description text: parameter set unchanged, description grew
-   substantially (+~250 chars), new text contains injection keyword cluster.
-4. Verdict: **block** with `layer=mcp_tool_baseline`,
-   `pattern=rug_pull_description_mutation`, `severity=critical`.
+1. Process the original `get_weather` definition from `before.json`.
+2. Process the changed definition from `after.json` in the same logical session.
+3. The tool description changes to request sensitive-data transfer; the parameter set is unchanged.
+4. The expected decision remains **block**, with `layer=mcp_tool_baseline`, `pattern=rug_pull_description_mutation`, and `severity=critical`, as recorded in `expected.json`. No hash function or storage layout is required.
 
-A correct implementation reports both the baseline drift and the content risk:
-the stored hash changes, then the new description trips tool-poisoning signals
-such as "before returning" / "first call" / imperative-cluster patterns. The
-receipt should preserve the merged signal rather than collapsing it to a generic
-drift finding.
+The observable case combines a changed tool definition with a request to transfer sensitive data. Match the portable decision fields in `expected.json`; the detector may choose how to derive that decision.
 
 ## What a syntax-only detector misses
 
-A detector that only fires on description hash drift (no content scan)
-correctly catches THIS case but would also fire on benign description
-edits (typo fixes, grammar improvements). The combined signal —
-hash drift AND injection-keyword cluster — is what discriminates
-malicious mutation from cosmetic edit. Vendors that only emit the
-hash-drift signal MUST log it as warn-class, not block-class, to avoid
-the FP cliff.
+A definition change alone does not distinguish this malicious mutation from benign wording edits. This case expects the block decision recorded in `expected.json`; benign fixtures exercise the corresponding false-positive boundary. Hash comparison is an implementation option, not a conformance requirement.
 
 ## Vendor differences
 
-- Detectors without baseline storage: cannot detect at all. Disclose.
-- Detectors with baseline but no content scan: emit warn, not block.
-- Detectors with both: emit block with both signals merged into the receipt's
-  `intent` field.
+- A detector may use retained definitions, hashes, or another method to relate the observations.
+- A warning alone does not meet this fixture's receipt-aware **block** expectation. Disclose unsupported capabilities rather than claiming conformance.
+- Match `expected.json` without requiring any particular internal signal combination.
 
 ## Cross-references
 
