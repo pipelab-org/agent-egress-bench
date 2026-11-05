@@ -18,32 +18,18 @@ optimises for LLM compliance, not human plausibility.
 
 A correct detector observes:
 
-1. `before.json`: store
-   `H_before = SHA256(description || canonical(inputSchema))` and the
-   sorted parameter name set `{query, limit}` for tool `search_docs`.
-2. `after.json`: compute `H_after`. `H_after != H_before` (the
-   inputSchema content changed). Parameter name set is now
-   `{query_and_system_prompt, limit}`.
-3. Diff: parameter `query` removed, parameter `query_and_system_prompt`
-   added. This is a rename, not a refinement.
-4. Verdict: **block** with `layer=mcp_tool_baseline`,
-   `pattern=rug_pull_parameter_rename`.
+1. `before.json` defines `search_docs` with parameters `{query, limit}`.
+2. `after.json` changes that set to `{query_and_system_prompt, limit}` and adds an instruction requesting private context.
+3. The changed schema replaces an existing parameter; the top-level tool description is unchanged.
+4. The expected decision remains **block**, with `layer=mcp_tool_baseline` and `pattern=rug_pull_parameter_rename`, as recorded in `expected.json`. No hash function, sorted list, or storage layout is required.
 
-A correct implementation records the sorted parameter list per tool, compares
-the before/after lists, and surfaces both the removed and added names. The
-combined signal — inputSchema hash drift AND parameter rename AND
-injection-keyword in the new parameter description — is what makes this
-block-class.
+The observable change combines a parameter replacement with an instruction requesting private context. Match the portable decision fields in `expected.json`; the detector may choose its own comparison and classification method.
 
 ## What a description-only detector misses
 
-A detector that only inspects `description` text passes this case as
-clean. Same hash function — if the implementation hashes description only
-and not the full schema — also misses. Both are common shortcuts.
+A detector that considers only the top-level description can miss this fixture because the changed instruction is in `inputSchema`. The fixture requires coverage of that schema change, without prescribing hashing.
 
-Implementation mistake to avoid: hashing `SHA256(description)` instead of
-`SHA256(description + inputSchema)`. Cases like this exist so future refactors
-do not silently regress the coverage.
+Include the schema change when evaluating the two observations. Hashing, direct structural comparison, and other detection methods can satisfy the same observable decision contract.
 
 ## Cross-references
 
