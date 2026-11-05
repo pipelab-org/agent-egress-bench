@@ -102,7 +102,7 @@ results cite it and the verification procedure resolves it.
 
 `corpus_version` names one exact corpus and is bound to it. [`ci/corpus-versions.json`](../ci/corpus-versions.json) records, for each label, the scored case count and the `benchmark_manifest_sha256` of the corpus that label names, and `runner/corpus_version_test.go` fails when the corpus on disk is not the corpus the current label names. An active-set entry also records the SHA-256 of its versioned selection artifact. Adding, removing, or re-expecting a scored case therefore requires a new label and a new ledger entry in the same change. The current label must be the ledger's final entry.
 
-Ledger entries are append-only. Published results carry the label, so rewriting an entry retroactively changes what an already-published number was measured over. Documentation and unreferenced files are excluded from the digest, so editorial work on the corpus does not force a bump.
+Ledger entries are append-only. Published results carry the label, so rewriting an entry retroactively changes what an already-published number was measured over. Documentation outside the selected case files and unreferenced files are excluded from the digest, so editorial work on them doesn't force a bump. The digest does cover every file a case selects, including the `notes.md` that a multi-file case declares in `case.yaml`. Editing one of those files needs a new label and, for an existing case, a [case repair record](#case-id-immutability).
 
 A corpus label binds one exact scored set. Adding scored cases without a new label would let the same label identify different denominators, so CI verifies both the label and the corpus digest.
 
