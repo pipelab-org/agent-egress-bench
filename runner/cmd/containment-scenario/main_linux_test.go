@@ -407,10 +407,32 @@ func TestRequireRootPinnedExecutable(t *testing.T) {
 	if err := requireRootPinnedExecutable(rootOwned); err != nil {
 		t.Fatalf("root-owned executable rejected: %v", err)
 	}
-	if info, err := os.Lstat("/usr/bin/true"); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		if err := requireRootPinnedExecutable("/usr/bin/true"); err == nil {
-			t.Fatal("symlinked executable path accepted")
+	info, err := os.Lstat("/usr/bin/true")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		if err := requireRootPinnedExecutable("/usr/bin/true"); err == nil || !strings.Contains(err.Error(), "path component is a symlink") {
+			t.Fatalf("symlinked executable path error = %v", err)
 		}
+	}
+	for _, tc := range []struct {
+		name   string
+		target string
+		suffix string
+	}{
+		{name: "file", target: rootOwned},
+		{name: "directory", target: filepath.Dir(rootOwned), suffix: filepath.Base(rootOwned)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			link := filepath.Join(t.TempDir(), "link")
+			if err := os.Symlink(tc.target, link); err != nil {
+				t.Fatal(err)
+			}
+			if err := requireRootPinnedExecutable(filepath.Join(link, tc.suffix)); err == nil || !strings.Contains(err.Error(), "path component is a symlink") {
+				t.Fatalf("symlinked path error = %v", err)
+			}
+		})
 	}
 	userOwned := t.TempDir() + "/tool"
 	if err := os.WriteFile(userOwned, []byte("tool"), 0o700); err != nil {
