@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "case_id": "mcp-drift-rugpull-param-003",
-  "reason": "Correct notes to require observable decisions and portable receipt fields, preserving the retained verdicts, snapshots, expected receipts, and immutable case semantics.",
+  "reason": "Correct notes and case descriptions to require observable decisions and portable receipt fields without prescribing hash matching; payloads, expected receipts, verdicts and case IDs are unchanged.",
   "files": [
     {
       "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/after.json",
@@ -16,7 +16,7 @@
     {
       "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/case.yaml",
       "base_sha256": "3636abc989353fa65d3e93e51d9da1e95c5ae252b1a7e20e9f0ba7a5397d82cd",
-      "repaired_sha256": "3636abc989353fa65d3e93e51d9da1e95c5ae252b1a7e20e9f0ba7a5397d82cd"
+      "repaired_sha256": "25c01f901f8a5bb6f285ab69d3bd9a308e94aa8b9eab2379a3ed7d6dafeaa5c1"
     },
     {
       "path": "cases/mcp-drift/mcp-drift-rugpull-param-003/expected.json",

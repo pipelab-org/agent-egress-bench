@@ -37,7 +37,7 @@ const (
 	// two different rule sets to publish under one label.
 	scoringVersion = "2.8"
 	runnerVersion  = "0.4.3"
-	// v2.16.0 corrects MCP drift notes without changing scored inputs or verdicts.
+	// v2.16.0 corrects MCP drift notes and two case descriptions without changing scored inputs or verdicts.
 	// v2.15.0 adds an SVG script injection response and a static SVG companion.
 	// v2.14.0 adds two attack and benign pairs: a cloud metadata address
 	// written with a trailing root dot, and a credential hidden behind a forged
