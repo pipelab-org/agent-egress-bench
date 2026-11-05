@@ -50,13 +50,13 @@ make stats
 make preflight
 ```
 
-`make stats` prints loader-backed corpus statistics. `make preflight` runs the repository validation gate, including race tests. The Makefile defines its build environment. The direct commands below build into a fresh private directory from `mktemp -d`, so a failed build can't leave an earlier binary to run.
+`make stats` prints loader-backed corpus statistics. `make preflight` runs the repository validation gate, including race tests. The Makefile defines its build environment. The direct commands below build into a fresh private directory from `mktemp -d`, resolved to an absolute path so it stays valid after `cd`, and a failed build can't leave an earlier binary to run.
 
 For a focused validator change:
 
 ```bash
 set -e
-bin_dir="$(mktemp -d)"
+bin_dir="$(cd "$(mktemp -d)" && pwd)"
 (cd validate && go test -race -count=1 ./...)
 (cd validate && go build -o "$bin_dir/aeb-validate" .)
 "$bin_dir/aeb-validate" cases cases
@@ -66,7 +66,7 @@ For a focused runner change:
 
 ```bash
 set -e
-bin_dir="$(mktemp -d)"
+bin_dir="$(cd "$(mktemp -d)" && pwd)"
 (cd runner && go test -race -count=1 ./...)
 (cd runner && go build -o "$bin_dir/aeb-gauntlet" .)
 "$bin_dir/aeb-gauntlet" \

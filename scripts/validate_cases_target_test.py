@@ -37,7 +37,10 @@ def recipe() -> str:
 
 
 class ValidateCasesTargetTest(unittest.TestCase):
+    """Runs the extracted recipe with a stand-in Go toolchain."""
+
     def setUp(self) -> None:
+        """Create a private TMPDIR, a fake `go` on PATH and a run record."""
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
         self.tmpdir = root / "tmp"
@@ -56,10 +59,14 @@ class ValidateCasesTargetTest(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
+        """Remove the private directory tree."""
         self.temp.cleanup()
 
-    def run_recipe(self, **extra: str) -> subprocess.CompletedProcess[str]:
-        script = recipe().replace("$(TMPDIR)", str(self.tmpdir))
+    def run_recipe(self, tmpdir: str | None = None, **extra: str) -> subprocess.CompletedProcess[str]:
+        """Run the recipe from the repository root with TMPDIR set as make would expand it."""
+        value = str(self.tmpdir) if tmpdir is None else tmpdir
+        absolute = os.path.normpath(os.path.join(REPO, value))
+        script = recipe().replace("$(abspath $(TMPDIR))", absolute).replace("$(TMPDIR)", value)
         return subprocess.run(
             ["/bin/sh", "-c", script],
             cwd=REPO,
@@ -70,6 +77,7 @@ class ValidateCasesTargetTest(unittest.TestCase):
         )
 
     def test_failed_build_never_runs_a_leftover_validator(self) -> None:
+        """A build failure stops before any validator runs."""
         stale = self.tmpdir / "aeb-validate"
         stale.write_text("#!/bin/sh\necho STALE_VALIDATOR_EXECUTED\nexit 0\n", encoding="utf-8")
         stale.chmod(0o755)
@@ -79,7 +87,18 @@ class ValidateCasesTargetTest(unittest.TestCase):
         self.assertFalse(self.record.exists())
         self.assertEqual(sorted(p.name for p in self.tmpdir.iterdir()), ["aeb-validate"])
 
+    def test_relative_tmpdir_builds_where_it_runs(self) -> None:
+        """A relative TMPDIR still names one directory after the build changes into validate/."""
+        relative = os.path.relpath(self.tmpdir, REPO)
+        self.assertFalse(os.path.isabs(relative))
+        result = self.run_recipe(tmpdir=relative)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        dirs = self.record.read_text(encoding="utf-8").split()
+        self.assertEqual(len(dirs), 1)
+        self.assertEqual(Path(dirs[0]).parent, self.tmpdir)
+
     def test_each_run_builds_in_its_own_removed_directory(self) -> None:
+        """Two runs use distinct build directories and remove both."""
         for _ in range(2):
             result = self.run_recipe()
             self.assertEqual(result.returncode, 0, result.stderr)

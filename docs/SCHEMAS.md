@@ -96,7 +96,7 @@ with the result.
 
 ```bash
 set -e
-bin_dir="$(mktemp -d)"
+bin_dir="$(cd "$(mktemp -d)" && pwd)"
 cp examples/runner-template/tool-profile-template.json tool-profile.json
 (cd runner && go build -o "$bin_dir/aeb-gauntlet" .)
 ```

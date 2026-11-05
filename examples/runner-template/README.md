@@ -10,6 +10,7 @@ A practical guide for building a runner that connects your security tool to the 
 - A `tool-profile.json` declaring your tool's capabilities
 - `bash` (the skeleton is a bash script, but you can write your runner in any language)
 - Python 3, used by the skeleton to read the artifact contract
+- Go 1.24 or later, to build the validator in [Step 4](#step-4-validate-your-output)
 
 ## Can my tool be integrated?
 

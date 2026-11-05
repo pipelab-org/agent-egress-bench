@@ -199,7 +199,7 @@ validate: validate-cases
 
 validate-cases:
 	@mkdir -p "$(TMPDIR)"
-	@set -eu; build_dir="$$(mktemp -d "$(TMPDIR)/aeb-validate.XXXXXX")"; \
+	@set -eu; build_dir="$$(mktemp -d "$(abspath $(TMPDIR))/aeb-validate.XXXXXX")"; \
 	trap 'rm -rf "$$build_dir"' EXIT; \
 	bin="$$build_dir/aeb-validate"; \
 	(cd validate && go build -o "$$bin" .); \
@@ -249,7 +249,7 @@ test-pipelock-example:
 # pins the logical corpus so a case cannot leave it without a visible diff;
 # runner/corpus_manifest_test.go asserts the two agree in both directions.
 cases-manifest:
-	cd runner && go test . -run 'TestCorpus' -update-manifest
+	cd runner && go test . -run '^TestCorpusMatchesManifest$$' -update-manifest
 
 # Print canonical statistics from the runner's loaded corpus. Unlike the
 # manifest, this reports category and verdict metadata from each loaded case.

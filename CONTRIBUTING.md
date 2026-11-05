@@ -15,11 +15,16 @@ Contributions welcome: new test cases, runners for your security tool, documenta
    ```
 
    `make check-case-governance` requires one record per logical case. See [Per-case governance decision records](docs/GOVERNANCE.md#per-case-governance-decision-records).
-6. Give the changed corpus a new version. Adding, removing or re-expecting a scored case needs a new label in `cases/CORPUS_VERSION` and `runner/summary.go`, a new active-set artifact under `corpora/active-sets/v1/`, and a new final entry in `ci/corpus-versions.json` with its case count and digests. The same applies to editing a file that a case selects, such as the `notes.md` a multi-file case declares. Never edit existing ledger entries or artifacts. [Corpus version identity](docs/GOVERNANCE.md#corpus-version-identity) owns the rules.
-7. Regenerate the manifest and statistics, review the generated changes, then run the full gate:
+6. Regenerate the case manifest and review the change:
 
    ```bash
    make cases-manifest
+   ```
+
+7. Give the changed corpus a new version. Adding, removing or re-expecting a scored case needs a new label in `cases/CORPUS_VERSION` and `runner/summary.go`, a new active-set artifact under `corpora/active-sets/v1/` bound to the regenerated manifest, and a new final entry in `ci/corpus-versions.json` with its case count and digests. The same applies to editing a file that a case selects, such as the `notes.md` a multi-file case declares. Never edit existing ledger entries or artifacts. [Corpus version identity](docs/GOVERNANCE.md#corpus-version-identity) owns the rules.
+8. Regenerate the statistics, review the generated changes, then run the full gate:
+
+   ```bash
    make stats-update
    make preflight
    ```

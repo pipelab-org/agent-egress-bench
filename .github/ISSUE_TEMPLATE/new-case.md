@@ -6,7 +6,7 @@ labels: new-case
 
 ## Category
 
-Which category from [docs/SPEC.md](../../docs/SPEC.md#category) does this case use? For temporal MCP drift, describe the multi-file scenario.
+Which category from [docs/SPEC.md](https://github.com/pipelab-org/agent-egress-bench/blob/main/docs/SPEC.md#category) does this case use? For temporal MCP drift, describe the multi-file scenario.
 
 ## Description
 
