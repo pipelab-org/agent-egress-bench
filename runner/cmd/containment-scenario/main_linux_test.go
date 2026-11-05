@@ -398,8 +398,19 @@ func TestVerifyTargetIdentityTimesOutProcessGroup(t *testing.T) {
 }
 
 func TestRequireRootPinnedExecutable(t *testing.T) {
-	if err := requireRootPinnedExecutable("/usr/bin/true"); err != nil {
+	// Some distributions install /usr/bin/true as a symlink to a multi-call
+	// binary. The check rejects symlinked components, so use the canonical path.
+	rootOwned, err := filepath.EvalSymlinks("/usr/bin/true")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := requireRootPinnedExecutable(rootOwned); err != nil {
 		t.Fatalf("root-owned executable rejected: %v", err)
+	}
+	if info, err := os.Lstat("/usr/bin/true"); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		if err := requireRootPinnedExecutable("/usr/bin/true"); err == nil {
+			t.Fatal("symlinked executable path accepted")
+		}
 	}
 	userOwned := t.TempDir() + "/tool"
 	if err := os.WriteFile(userOwned, []byte("tool"), 0o700); err != nil {
