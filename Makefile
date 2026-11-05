@@ -189,6 +189,7 @@ check-diagrams:
 test-validate:
 	@mkdir -p "$(TMPDIR)"
 	@cd validate && go test -race -count=1 ./...
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts/validate_cases_target_test.py
 
 # `validate` is an alias for validate-cases. It must stay .PHONY: a directory
 # named validate/ holds the validator source, so without the .PHONY entry Make
