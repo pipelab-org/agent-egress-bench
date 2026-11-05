@@ -4,6 +4,11 @@ TMPDIR ?= /tmp
 ifeq ($(strip $(TMPDIR)),)
 $(error TMPDIR must name a nonempty temporary directory)
 endif
+# Recipes change into module directories before running Go, which creates its
+# work directory under TMPDIR, so a relative value would name a different place.
+ifneq ($(patsubst /%,,$(firstword $(TMPDIR))),)
+$(error TMPDIR must be an absolute path, got "$(TMPDIR)")
+endif
 export TMPDIR
 
 # Default fixture for local validator/renderer contract tests. A workflow that
@@ -199,7 +204,7 @@ validate: validate-cases
 
 validate-cases:
 	@mkdir -p "$(TMPDIR)"
-	@set -eu; build_dir="$$(mktemp -d "$(abspath $(TMPDIR))/aeb-validate.XXXXXX")"; \
+	@set -eu; build_dir="$$(mktemp -d "$(TMPDIR)/aeb-validate.XXXXXX")"; \
 	trap 'rm -rf "$$build_dir"' EXIT; \
 	bin="$$build_dir/aeb-validate"; \
 	(cd validate && go build -o "$$bin" .); \

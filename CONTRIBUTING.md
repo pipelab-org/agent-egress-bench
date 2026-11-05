@@ -50,7 +50,7 @@ Start from the [runner template](examples/runner-template/) and follow [docs/ADO
 
 ## Validation
 
-`make validate-cases` checks case structure. Before submitting any change, run `make preflight`; CI runs the same gate on every pull request, along with CodeQL security analysis and dependency review.
+`make validate-cases` checks case structure. Before submitting any change, run `make preflight`; CI runs the same gate on every pull request, along with CodeQL security analysis and dependency review. A pull request that changes only workflow files runs `make test-workflows` instead of the full gate.
 
 ## Governance
 
