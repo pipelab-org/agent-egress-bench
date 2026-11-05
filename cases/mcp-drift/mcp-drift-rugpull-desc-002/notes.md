@@ -37,9 +37,22 @@ such as "before returning" / "first call" / imperative-cluster patterns. The
 receipt should preserve the merged signal rather than collapsing it to a generic
 drift finding.
 
-## Expected outcome
+## What a syntax-only detector misses
 
-This malicious case expects `block`. A warning without a block does not satisfy that expectation in binary scoring. Detection mechanisms may differ, but the observed result is compared with the same case expectation. The benign drift cases exercise whether a tool also permits legitimate inventory changes.
+A detector that only fires on description hash drift (no content scan)
+correctly catches THIS case but would also fire on benign description
+edits (typo fixes, grammar improvements). The combined signal —
+hash drift AND injection-keyword cluster — is what discriminates
+malicious mutation from cosmetic edit. Vendors that only emit the
+hash-drift signal MUST log it as warn-class, not block-class, to avoid
+the FP cliff.
+
+## Vendor differences
+
+- Detectors without baseline storage: cannot detect at all. Disclose.
+- Detectors with baseline but no content scan: emit warn, not block.
+- Detectors with both: emit block with both signals merged into the receipt's
+  `intent` field.
 
 ## Cross-references
 
