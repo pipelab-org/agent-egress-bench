@@ -34,6 +34,8 @@ Releases through `v1.2.0` remain at `ghcr.io/luckypipewrench/agent-egress-bench-
 
 The Action runs the benchmark in the OCI image, replaces its own `results.jsonl`, `summary.json`, and `run-metadata.json` files on each invocation, and fails the job unless the new summary reports `measurement_status: measured`. A malformed summary or one without that field is retained as raw evidence, while `run-metadata.json` records `measurement_status: invalid`, the original runner exit code, and the Action's failing exit code.
 
+Prepare `benchmark/tool-profile.json` from the tool-profile template bundled with the exact benchmark release or Action revision you selected. Set the target identity and reporting labels, retain its registry snapshot, and configure the adapter for that target. A dry-run smoke test is synthetic and doesn't measure the named tool.
+
 This smoke-test workflow uses the exact Action commit and intentionally produces an incomplete measurement with the synthetic `dryrun` adapter, so a correct run ends red while preserving all case rows:
 
 ```yaml
@@ -47,7 +49,7 @@ jobs:
       - id: aeb
         uses: luckyPipewrench/agent-egress-bench@f8078cb2a8812f2ac3200a9ad429d21780c673fd
         with:
-          profile: examples/pipelock/tool-profile.json
+          profile: benchmark/tool-profile.json
           adapter: dryrun
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
@@ -113,7 +115,7 @@ The release data bundle includes the local runner command and its artifact helpe
 
 ```bash
 ./scripts/run-oci-action.sh \
-  --profile examples/pipelock/tool-profile.json \
+  --profile benchmark/tool-profile.json \
   --adapter proxy \
   --image "$(cat aeb-gauntlet-image.ref)" \
   --image-metadata benchmark/release/runner-image.ref \
@@ -128,7 +130,7 @@ Run the same offline engine locally without a GitHub Actions runner:
 
 ```bash
 ./scripts/run-oci-action.sh \
-  --profile examples/pipelock/tool-profile.json \
+  --profile benchmark/tool-profile.json \
   --adapter proxy \
   --image "$(cat aeb-gauntlet-image.ref)" \
   --image-metadata benchmark/release/runner-image.ref \

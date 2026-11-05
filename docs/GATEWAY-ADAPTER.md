@@ -88,8 +88,7 @@ this delivery direction is `skip` rather than a false containment result.
 
 ## Plugin fields
 
-`name` names the integration for local output. `transport` is the plugin
-protocol transport; PR1 accepts only `streamable_http`.
+`name` names the integration for local output. `transport` names the plugin protocol transport; the supported value is `streamable_http`.
 
 `gateway` describes how the runner starts and waits for the gateway:
 

@@ -60,7 +60,7 @@ Ask one question about any proposed change:
 
 Yes, so amend that family in place and leave its version alone. No, so bump that one family and keep its old reader working. The rest of this section is that question stated precisely, plus what freezing means.
 
-Two things follow that are easy to get backwards. A version number belongs to ONE family, so bumping result rows does not move cases, profiles, or anything else; the writer constants are per family and `runner/schema_version_contract_test.go` fails if any of them disagrees with the manifest. And a high version number is not evidence of churn, because these numbers were assigned when versioned filenames were adopted rather than earned one release at a time.
+A version number belongs to one artifact family. Changing result rows doesn't change the versions of cases, profiles or other families. `runner/schema_version_contract_test.go` checks writer constants against the manifest.
 
 Each artifact family has its own version. Cases, result rows, tool profiles, receipt profiles, summaries, provenance candidates, case indexes, promotion records, baselines, and Control Evidence documents do not become compatible because two version numbers happen to match. The machine-readable [`contracts/artifacts.json`](../contracts/artifacts.json) manifest names each active writer, accepted reader, frozen version, schema, and gate.
 
@@ -102,9 +102,9 @@ results cite it and the verification procedure resolves it.
 
 `corpus_version` names one exact corpus and is bound to it. [`ci/corpus-versions.json`](../ci/corpus-versions.json) records, for each label, the scored case count and the `benchmark_manifest_sha256` of the corpus that label names, and `runner/corpus_version_test.go` fails when the corpus on disk is not the corpus the current label names. An active-set entry also records the SHA-256 of its versioned selection artifact. Adding, removing, or re-expecting a scored case therefore requires a new label and a new ledger entry in the same change. The current label must be the ledger's final entry.
 
-Ledger entries are append-only. Published results carry the label, so rewriting an entry retroactively changes what an already-published number was measured over. Documentation and unreferenced files are excluded from the digest, so editorial work on the corpus does not force a bump.
+Ledger entries are append-only. Published results carry the label, so rewriting an entry retroactively changes what an already-published number was measured over. Documentation outside the selected case files and unreferenced files are excluded from the digest, so editorial work on them doesn't force a bump. The digest does cover every file a case selects, including the `notes.md` that a multi-file case declares in `case.yaml`. Editing one of those files needs a new label and, for an existing case, a [case repair record](#case-id-immutability).
 
-The requirement exists because a label that does not move is indistinguishable from a corpus that did not change. Four scored cases were added on 2026-08-24 without a bump, so one label named both a 242-case and a 246-case corpus while every check that compared labels reported agreement.
+A corpus label binds one exact scored set. Adding scored cases without a new label would let the same label identify different denominators, so CI verifies both the label and the corpus digest.
 
 ### Compatibility matrix
 
@@ -136,7 +136,7 @@ A lab that keeps an artifact from tagged release N-1 and later opens it with a r
 
 Verify a downloaded release package against the tag that produced it. `python3 scripts/release_build.py verify --release-dir DIR --repo-root .` rebuilds `release-identity.json` from the checked-out tree and refuses a mismatch with `release identity disagrees with the checked-out source tree`. Pointing an N checkout at N-1 archives fails that check. It is not a schema-family read.
 
-Saved run artifacts are per family, and the accepted version list for every family is owned by [`contracts/artifacts.json`](../contracts/artifacts.json), not this page. The behavior is uniform: a reader either accepts the versions that manifest declares for it or refuses with a `schema_version` error that names the accepted versions and the value it got. Copying those version lists here has already drifted once, so this page states only the behaviors that are version-free:
+Saved run artifacts are versioned per family. [`contracts/artifacts.json`](../contracts/artifacts.json) owns each reader's accepted versions. A reader accepts a declared version or refuses it with a `schema_version` error naming the accepted versions and the value received. The behaviors below describe compatibility without duplicating that inventory.
 
 - Frozen result rows cannot share a file with rows of the active result schema; the validator refuses the mixed file with `frozen result rows cannot share a file with active schema_version 6 rows` style errors that name both sides.
 - Control Evidence v0 and v1 are separate verifiers. A v1 verifier given a v0 requirement envelope fails closed with `requirement_payload_type_mismatch`, and historical v0 packages cannot be normalized into v1; use the v0 verifier for v0 packages.

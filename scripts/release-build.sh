@@ -61,9 +61,12 @@ fi
 identity=.release/release-identity.json
 rm -rf "$dist" .release
 mkdir -p .release
-export TMPDIR="$HOME/.cache/pipelock-tmp"
-export GOCACHE="$HOME/.cache/go-build"
-mkdir -p "$TMPDIR" "$GOCACHE"
+: "${TMPDIR:=/tmp}"
+mkdir -p "$TMPDIR"
+# GoReleaser builds each module from its own directory, and Go creates its work
+# directory under TMPDIR, so resolve a relative value once for every build.
+TMPDIR="$(cd "$TMPDIR" && pwd)"
+export TMPDIR
 python3 scripts/release_build.py prepare \
   --tag "$tag" \
   --version "$version" \

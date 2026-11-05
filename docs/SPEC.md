@@ -12,7 +12,7 @@ agent-egress-bench defines a standardized corpus of test cases for evaluating AI
 
 ## Case Format
 
-Each case is a single JSON file in the `cases/` directory tree. Files are named `{id}.json` where `id` matches the `id` field inside the document.
+A single-file case is one JSON file at `cases/<category-directory>/<id>.json`, where the filename matches the `id` field inside the document. A temporal MCP drift case is a directory under `cases/mcp-drift/<id>/` holding `case.yaml` and the files it references; the directory name matches its `id`. The fields below describe single-file cases; see [`cases/mcp-drift/README.md`](../cases/mcp-drift/README.md) for the multi-file shape.
 
 ### Required Fields
 
@@ -38,13 +38,14 @@ Each case is a single JSON file in the `cases/` directory tree. Files are named 
 | Field | Type | Description |
 |-------|------|-------------|
 | `notes` | string | Human context (use empty string if none) |
-| `source` | string | Reference or citation (use empty string if none) |
+| `source` | string | Reference, citation or a note on how the case was constructed. The schema accepts an empty string so older cases stay valid, but new cases must state provenance; see [Contribution acceptance](GOVERNANCE.md#contribution-acceptance). |
 
 ### Conditional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `safe_example` | boolean | Must be `true` for benign cases (`expected_verdict: allow`). Omit for malicious cases. |
+| `supersedes` | string | Optional ID of an existing case whose semantics this case replaces. Omit when unused. The target must exist, and empty values, self-reference and cycles are rejected. The relationship alone doesn't change which cases run; see [Supersession](GOVERNANCE.md#supersession). |
 | `prerequisites` | array of objects | Optional machine-readable external setup a runner must satisfy before executing the case. Each entry has `kind` (`blocklist_domain` or `reserved_sink_route`) and `value`. A payload host is any host named by `payload.url` or `payload.target_url`, and a declared value must equal one of them, compared case-insensitively. When a payload names more than one host and any one of them is covered, every one of them must be covered, because the transport selects a single endpoint and setup bound to the other one guards a destination the run never uses. A `reserved_sink_route` value must be one of the corpus-reserved sink hosts `ws-exfil-sink.test` or `a2a-exfil-sink.test`; that set is closed, and adding to it is a contract change. Declaring nothing is normal: a runner derives the same requirement from `requires` and the payload hosts, and acts on the union of declared and derived rather than letting one replace the other. An unsatisfied prerequisite is a runner error, not a detection miss. |
 
 ## Enums
@@ -128,7 +129,7 @@ sufficiency, change a score, or gate publication.
 
 Delivery, fixture, and base-observation prerequisites only. `requires` must never encode attack difficulty, evasion resistance, or an enforcement claim (for example `encoding_evasion_scanning`, `ssrf_bypass_scanning`, or `budget_enforcement`); those belong in `capability_tags` or result evidence. The validator rejects those tokens for both single-file and multi-file cases.
 
-Live cases, profiles, and receipt artifacts use schema v4. Result rows and summaries use schema v5, while provenance candidates use schema v6. Each reader checks the active version for its own artifact family. Each active profile and result names the exact capability-registry snapshot by ID, format, revision, and raw-byte SHA-256. Historical result rows and summaries remain readable through their frozen schemas and aren't normalized into newer semantics. See [Capability Vocabulary and Profile Evolution](CAPABILITY-VOCABULARY.md).
+Each artifact family has its own active writer version and accepted reader versions, listed in [`contracts/artifacts.json`](../contracts/artifacts.json); [Versioning and compatibility](GOVERNANCE.md#versioning-and-compatibility) owns the policy. Each reader checks the active version for its own artifact family. Each active profile and result names the exact capability-registry snapshot by ID, format, revision, and raw-byte SHA-256. Historical result rows and summaries remain readable through their frozen schemas and aren't normalized into newer semantics. See [Capability Vocabulary and Profile Evolution](CAPABILITY-VOCABULARY.md).
 
 ## Payload Formats
 

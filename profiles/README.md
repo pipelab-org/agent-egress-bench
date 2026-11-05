@@ -74,10 +74,7 @@ runner or adapter; the schema is tool-neutral.
 
 ## How to add a profile
 
-1. Implement a runner or adapter that exercises the corpus against your
-   tool. The reference runner in [`../runner/`](../runner/) handles
-   Pipelock; tools that speak the same HTTP-proxy + scan-API surface can
-   reuse it. Other tools provide their own runner.
+1. Implement a runner or select a supported adapter that exercises the corpus against your tool. [RUNNER.md](../docs/RUNNER.md) lists the exact supported delivery shapes. An unsupported architecture needs its own faithful adapter or runner.
 2. Run your tool against the corpus and emit a profile that conforms to
    [`../schemas/receipt-scoring-profile-v5.schema.json`](../schemas/receipt-scoring-profile-v5.schema.json).
 3. Add `profiles/<tool>.json` and (optionally) a sibling `notes.md`
@@ -101,17 +98,7 @@ nothing to pass. The profile is the published evidence.
 
 ## Coverage scope
 
-The reference runner discovers the 234 single-file cases under
-[`../cases/`](../cases/) plus the 6 multi-file cases in
-[`../cases/mcp-drift/`](../cases/mcp-drift/) (18 JSON fixture files total:
-`before.json`, `after.json`, and `expected.json` per case). The optional
-`--multifile-cases` flag only relocates that complete family. The runner
-refuses an override whose IDs differ from the loader-backed corpus. It loads
-each case directory, converts the before/after snapshot pair into a
-four-message JSON-RPC sequence (two `tools/list` requests interleaved with
-the two snapshots), and replays the sequence through a single MCP session
-against the running tool. The verdict on the second response is what the
-per-case row records.
+The reference runner discovers logical single-file cases and registered multi-file families under `cases/`. `make stats` reports the current source inventory. A `--multifile-cases` override relocates the complete family without changing its IDs. [RUNNER.md](../docs/RUNNER.md#multi-file-mcp-drift-loader) owns the temporal loader, transport and observation contract; component snapshots aren't independent cases.
 
 ## Files in this directory
 

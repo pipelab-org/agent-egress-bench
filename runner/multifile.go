@@ -753,11 +753,9 @@ func withJSONRPCID(msg interface{}, id float64) interface{} {
 	return cp
 }
 
-// computeMultiFileSHA256Paths returns the machine-readable multi-file inputs
-// (case.yaml plus the three JSON snapshots per case, sorted by path). The
-// loader snapshot and its digest functions consume those bytes; notes.md is
-// documentation for human reviewers, not part of the case-machine-readable
-// contract.
+// computeMultiFileSHA256Paths lists case metadata and JSON snapshots, sorted
+// by path, excluding narrative notes. Corpus digests use
+// selectedMultiFileSnapshotPaths, which also includes the declared notes file.
 func computeMultiFileSHA256Paths(dir string) ([]string, error) {
 	if dir == "" {
 		return nil, nil

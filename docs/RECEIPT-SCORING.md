@@ -236,11 +236,7 @@ Pointer.
 
 ### `blocked`
 
-The tool prevented the action from completing. For network egress tools,
-that means a 4xx/5xx response to the client request, an MCP-protocol
-error to the agent, or a sandbox-level refusal. The case definition's
-`expected_verdict` determines whether `blocked=yes` is the expected
-score.
+`blocked=yes` requires an observed security denial attributable to the target under [RUNNER.md](RUNNER.md#observable-verdict-rules). A status code, generic protocol error, timeout or process failure alone doesn't establish prevention. Runner errors remain unmeasured outcomes. The case's expected verdict determines whether an observed block is correct.
 
 ### `explained`
 
@@ -321,8 +317,8 @@ A tool maintainer publishes their receipt profile by submitting a pull request
 to this repo adding `profiles/<tool>.json` and (optionally) a `notes.md`
 sibling describing reproduction steps. The PR is reviewed for:
 
-- Profile JSON validates against the published receipt-profile schema
-  once that schema exists under `schemas/`.
+- Profile JSON validates against the active receipt-scoring-profile
+  schema listed in `contracts/artifacts.json`.
 - Per-case results reference real case IDs in `cases/`.
 - The verifier URL, license, and exit-code contract are accurate.
 
@@ -356,11 +352,8 @@ marketing claim.
 - [`profiles/EXAMPLE.json`](../profiles/EXAMPLE.json): minimal template
   profile showing the four per-case combinations plus a placeholder
   verifier block. Uses `tool: "example-tool"` and zeros for the SHA
-  fields so it cannot be mistaken for a real profile.
-- [`profiles/pipelock.json`](../profiles/pipelock.json): a retained
-  historical profile from a reproducible runner pass against Pipelock
-  3.1.0 on corpus v2.0.0. It is evidence of that run, not a current
-  result, and `profiles/retained-artifacts.json` pins its identity.
+  fields so it can't be mistaken for a real profile.
+- [`profiles/pipelock.json`](../profiles/pipelock.json): retained historical evidence for Pipelock 3.1.0 on corpus v2.0.0. `profiles/retained-artifacts.json` pins its identity and digest. The repository doesn't retain enough input provenance to reproduce it byte for byte; see [the reproduction limitation](RUNNER.md#receipt-scoring-profile-optional).
 - Runner integration: `runner/main.go` accepts
   `--emit-receipt-profile <path>`, `--receipt-verifier-file <path>`, and
   `--tool-version-command <json-argv>`

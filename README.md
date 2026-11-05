@@ -226,7 +226,7 @@ The maintainer publishes Pipelock's own history at [pipelab.org/gauntlet/results
 
 ## Run it against your own tool
 
-Every tool brings its own runner or adapter. The Go program in [`runner/`](runner/) is the reference implementation: it stands up the fixtures, drives each declared transport through the selected adapter, and writes per-case JSONL to stdout plus a Gauntlet summary to `--output`. It ships with a `proxy` adapter for fetch-style and CONNECT forward proxies, WebSocket, MCP stdio, MCP HTTP, and A2A, and a narrow plugin-configured `gateway` adapter for Streamable HTTP MCP gateways.
+Every tool brings its own runner or adapter. The Go program in [`runner/`](runner/) is the reference implementation: it stands up the fixtures, drives each declared transport through the selected adapter, and writes per-case JSONL to stdout plus a Gauntlet summary to `--output`. It ships with a `proxy` adapter for fetch-style and CONNECT forward proxies, WebSocket, MCP stdio, MCP HTTP, and A2A, and a narrow plugin-configured `mcp-gateway` adapter for Streamable HTTP MCP gateways.
 
 1. Start from the [runner template](examples/runner-template/) or read the complete [Pipelock reference runner](examples/pipelock/). [`docs/RUNNER.md`](docs/RUNNER.md) is the contract.
 2. Declare what your product can see in a capability profile. Labels come from the [immutable capability registry](docs/CAPABILITY-VOCABULARY.md); they describe a result and can't select cases out of it.
@@ -303,7 +303,7 @@ The full policy, including versioning, mixed-release readers, and the case-repai
 
 A tagged release fixes the corpus, schemas, contracts, runner source, and runner archives in one package: a data bundle, a commit-pinned schema catalog and bundle, archives for Linux, macOS, and Windows on amd64 and arm64 carrying both `aeb-gauntlet` and `aeb-validate`, `checksums.txt`, `release-identity.json`, the digest-pinned `runner-image.ref`, and GitHub Artifact Attestations for every asset. [`docs/RELEASES.md`](docs/RELEASES.md) has the verification walkthrough, and [`contracts/artifacts.json`](contracts/artifacts.json) is the machine-readable compatibility inventory.
 
-The bench binaries are multi-OS. The Pipelock reference lane is Linux-only, and a macOS archive lets you inspect the corpus and validate saved artifacts, not run that lane. The first tagged GitHub Release is being prepared against the [lab-readiness bar](docs/ADOPTION.md); until it ships, build from source as shown in the quick start.
+Tagged packages are available from [GitHub Releases](https://github.com/pipelab-org/agent-egress-bench/releases). Use the exact release cited by a result and follow [release verification](docs/RELEASES.md). The benchmark binaries ship for multiple operating systems; the Pipelock reference adapter requires Linux.
 
 ## Docs
 

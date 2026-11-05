@@ -686,12 +686,7 @@ class ReleaseBuildTest(unittest.TestCase):
                 f"the data bundle must carry {relative}",
             )
         summary = self.root / "bundle-run-summary.json"
-        # /tmp is quota-constrained on the development hosts, so every Go
-        # command runs against the shared caches rather than filling it.
         go_env = dict(os.environ)
-        for name, value in (("TMPDIR", Path.home() / ".cache/pipelock-tmp"), ("GOCACHE", Path.home() / ".cache/go-build")):
-            value.mkdir(parents=True, exist_ok=True)
-            go_env[name] = str(value)
         run = subprocess.run(
             ["go", "run", ".", "--cases", str(extracted / "cases"), "--profile", str(profile), "--output", str(summary)],
             cwd=self.root / "runner",
@@ -1515,33 +1510,40 @@ class ReleaseBuildTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn(f"release-build: {option} requires a value", result.stderr)
 
-    def test_release_shell_sets_shared_go_caches(self) -> None:
+    def test_release_shell_preserves_caller_go_caches(self) -> None:
         fake_bin = Path(self.temp.name) / "bin"
         fake_bin.mkdir()
         fake_go = fake_bin / "go"
         fake_go.write_text(
             "#!/usr/bin/env bash\n"
-            "if [[ \"${TMPDIR:-}\" == \"$HOME/.cache/pipelock-tmp\" && \"${GOCACHE:-}\" == \"$HOME/.cache/go-build\" ]]; then\n"
-            "  echo 'shared Go caches configured' >&2\n"
-            "else\n"
-            "  echo 'shared Go caches missing' >&2\n"
-            "fi\n"
+            '[[ "$TMPDIR" == "$EXPECTED_TMPDIR" && "$GOCACHE" == "$EXPECTED_GOCACHE" ]] || exit 72\n'
+            "echo 'caller Go caches preserved' >&2\n"
             "exit 71\n",
             encoding="utf-8",
         )
         fake_go.chmod(0o755)
-        environment = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}"}
-        environment.pop("TMPDIR", None)
-        environment.pop("GOCACHE", None)
-        result = subprocess.run(
-            ["bash", str(self.root / "scripts/release-build.sh"), "--tag", "snapshot", "--commit", self.commit, "--snapshot"],
-            cwd=self.root,
-            text=True,
-            capture_output=True,
-            env=environment,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("shared Go caches configured", result.stderr)
+        caller_tmp = Path(self.temp.name) / "caller-tmp"
+        caller_cache = Path(self.temp.name) / "caller-cache"
+        caller_tmp.mkdir()
+        for tmp_value, expected in ((str(caller_tmp), str(caller_tmp)), (None, "/tmp"), ("", "/tmp")):
+            with self.subTest(TMPDIR=tmp_value):
+                environment = {
+                    **os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                    "GOCACHE": str(caller_cache),
+                    "EXPECTED_TMPDIR": expected, "EXPECTED_GOCACHE": str(caller_cache),
+                }
+                environment.pop("TMPDIR", None)
+                if tmp_value is not None:
+                    environment["TMPDIR"] = tmp_value
+                result = subprocess.run(
+                    ["bash", str(self.root / "scripts/release-build.sh"), "--tag", "snapshot", "--commit", self.commit, "--snapshot"],
+                    cwd=self.root,
+                    text=True,
+                    capture_output=True,
+                    env=environment,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("caller Go caches preserved", result.stderr)
 
 
 if __name__ == "__main__":

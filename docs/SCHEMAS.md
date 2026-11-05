@@ -95,11 +95,13 @@ before using any command, replace its identity fields, and retain that profile
 with the result.
 
 ```bash
-export TMPDIR="$HOME/.cache/pipelock-tmp"
-export GOCACHE="$HOME/.cache/go-build"
-mkdir -p "$TMPDIR" "$GOCACHE"
+set -e
+export TMPDIR="${TMPDIR:-/tmp}"
+mkdir -p "$TMPDIR"
+TMPDIR="$(cd "$TMPDIR" && pwd)"
+bin_dir="$(mktemp -d)"
 cp examples/runner-template/tool-profile-template.json tool-profile.json
-(cd runner && go build -o "$TMPDIR/aeb-gauntlet" .)
+(cd runner && go build -o "$bin_dir/aeb-gauntlet" .)
 ```
 
 ### Fetch-style forward proxy
@@ -107,7 +109,7 @@ cp examples/runner-template/tool-profile-template.json tool-profile.json
 Start the target's fetch endpoint on `127.0.0.1:18899`, then run:
 
 ```bash
-"$TMPDIR/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter proxy --proxy-addr 127.0.0.1:18899 --fixtures --output fetch-summary.json
+"$bin_dir/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter proxy --proxy-addr 127.0.0.1:18899 --fixtures --output fetch-summary.json
 ```
 
 ### CONNECT-capable forward proxy
@@ -115,7 +117,7 @@ Start the target's fetch endpoint on `127.0.0.1:18899`, then run:
 Start the target as an HTTPS forward proxy on `127.0.0.1:18899`, then run:
 
 ```bash
-"$TMPDIR/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter proxy --proxy-addr 127.0.0.1:18899 --fixtures --output connect-summary.json
+"$bin_dir/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter proxy --proxy-addr 127.0.0.1:18899 --fixtures --output connect-summary.json
 ```
 
 ### MCP Streamable HTTP listener
@@ -124,7 +126,7 @@ Start the target's MCP HTTP listener at `http://127.0.0.1:18899/mcp`, then
 run:
 
 ```bash
-"$TMPDIR/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter proxy --mcp-http-url http://127.0.0.1:18899/mcp --fixtures --output mcp-http-summary.json
+"$bin_dir/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter proxy --mcp-http-url http://127.0.0.1:18899/mcp --fixtures --output mcp-http-summary.json
 ```
 
 ### MCP gateway
@@ -134,7 +136,7 @@ Create the tool-neutral gateway plugin described in
 start the gateway, then run:
 
 ```bash
-"$TMPDIR/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter mcp-gateway --gateway-plugin gateway-plugin.json --fixtures --output mcp-gateway-summary.json
+"$bin_dir/aeb-gauntlet" --cases cases --profile tool-profile.json --adapter mcp-gateway --gateway-plugin gateway-plugin.json --fixtures --output mcp-gateway-summary.json
 ```
 
 The runner records unsupported delivery tuples as `unreachable`. Do not relabel

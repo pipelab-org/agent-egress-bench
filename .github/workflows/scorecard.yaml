@@ -1,23 +1,7 @@
 name: Scorecard
 
-# OpenSSF Scorecard runs in its own workflow rather than alongside CodeQL,
-# because the two want different triggers and mixing them is visible to every
-# contributor.
-#
-# The action documents `push` and `schedule` as its supported triggers, default
-# branch only, and marks `pull_request` experimental. Its own reference workflow
-# in ossf/scorecard uses exactly `push` to the default branch plus a weekly
-# schedule. Publishing also needs `id-token: write` so the result can be
-# authenticated with GitHub's OIDC token, which a pull request from a fork
-# cannot supply.
-#
-# Living inside the pull-request-triggered Security workflow, this job had to
-# disable itself with `if: github.event_name != 'pull_request'`. That is correct
-# behavior and it renders as a permanent "Security / scorecard  Skipped" check
-# on every pull request. A skipped check reads like something failed to run and
-# invites a contributor to go looking for the breakage. Giving the job the
-# triggers it actually supports removes the condition and the phantom check
-# together, and changes nothing about when Scorecard really runs.
+# Scorecard runs separately from pull-request CodeQL analysis because its
+# authenticated publication uses default-branch events and an OIDC token.
 on:
   branch_protection_rule:
   workflow_dispatch:
@@ -62,21 +46,6 @@ jobs:
           path: results.sarif
           retention-days: 5
 
-      # Scorecard results are NOT uploaded to code scanning, deliberately.
-      #
-      # Scorecard grades repository practice: pinned dependencies, branch
-      # protection, what share of pull requests carried an approving review.
-      # Code scanning is the surface for defects in this repository's code, and
-      # routing a grade into it files each check as a dismissible alert with a
-      # severity attached.
-      #
-      # Those alerts also do not stay dismissed. GitHub matches results across
-      # uploads by rule and fingerprint, and a Scorecard result whose identity
-      # shifts arrives as a NEW alert that a previous dismissal does not cover.
-      # The outcome was a standing queue of security-labelled items that no code
-      # change could close.
-      #
-      # The results remain public and retrievable: publish_results above sends
-      # them to the OpenSSF Scorecard API that backs the badge and the public
-      # viewer, and the artifact above keeps the raw SARIF. This narrows where
-      # the grade is displayed. It does not withhold it.
+      # Scorecard measures repository practices. Publish its results to the
+      # Scorecard API and retain SARIF as an artifact, without uploading those
+      # repository-practice grades as code-scanning alerts.

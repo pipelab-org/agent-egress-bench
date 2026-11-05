@@ -6,7 +6,7 @@ labels: new-case
 
 ## Category
 
-Which attack surface? (url, request_body, headers, response_fetch, response_mitm, mcp_input, mcp_tool, mcp_chain)
+Which category from [docs/SPEC.md](https://github.com/pipelab-org/agent-egress-bench/blob/main/docs/SPEC.md#category) does this case use? For temporal MCP drift, describe the multi-file scenario.
 
 ## Description
 

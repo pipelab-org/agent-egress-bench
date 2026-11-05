@@ -1203,14 +1203,33 @@ class ContinuousGauntletWorkflowTest(unittest.TestCase):
                 (root / "artifacts" / "owner-summary.md").read_text(encoding="utf-8"),
             )
 
-    def test_stats_creates_its_declared_cache_directories(self):
-        makefile = MAKEFILE.read_text(encoding="utf-8")
-        match = re.search(r"(?ms)^stats:\n(?P<body>(?:\t.*\n)+)", makefile)
-        self.assertIsNotNone(match)
-        body = match.group("body")
-        mkdir = body.index('mkdir -p "$(TMPDIR)" "$(GOCACHE)"')
-        run = body.index("go run . --stats --cases ../cases")
-        self.assertLess(mkdir, run)
+    def test_stats_respects_caller_cache_settings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            fake_go = fake_bin / "go"
+            fake_go.write_text(
+                '#!/bin/sh\n'
+                'printf "TMPDIR=%s\\nGOCACHE=%s\\n" "$TMPDIR" "${GOCACHE-unset}"\n',
+                encoding="utf-8",
+            )
+            fake_go.chmod(0o755)
+            caller_tmp = root / "caller-tmp"
+            for tmp_value, expected in ((str(caller_tmp), str(caller_tmp)), (None, "/tmp"), ("", None)):
+                with self.subTest(TMPDIR=tmp_value):
+                    env = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}", "GOCACHE": str(root / "caller-cache")}
+                    env.pop("TMPDIR", None)
+                    if tmp_value is not None:
+                        env["TMPDIR"] = tmp_value
+                    result = subprocess.run(["make", "stats"], cwd=REPO_ROOT, env=env, text=True, capture_output=True)
+                    if expected is None:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn("TMPDIR must name a nonempty temporary directory", result.stderr)
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertIn(f"TMPDIR={expected}\nGOCACHE={root / 'caller-cache'}", result.stdout)
+                        self.assertTrue(Path(expected).is_dir())
 
 
 if __name__ == "__main__":

@@ -760,7 +760,7 @@ failure_reason="target sandbox build failed"
 target_binary="$pipelock_bin"
 target_sandbox="$work_dir/aeb-target-sandbox"
 target_state="$work_dir/target-state"
-: "${TMPDIR:=$HOME/.cache/pipelock-tmp}"
+: "${TMPDIR:=/tmp}"
 : "${GOCACHE:=$HOME/.cache/go-build}"
 export TMPDIR GOCACHE
 mkdir -p "$TMPDIR" "$GOCACHE"

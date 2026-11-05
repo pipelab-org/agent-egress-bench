@@ -1,6 +1,6 @@
 # Published schema audit
 
-This audit covers every versioned JSON Schema in the public catalog. The catalog currently contains 58 canonical contracts and 36 verifier copies. `make check-schema-copies` requires each verifier copy to remain byte-identical to its canonical schema, so the canonical row also covers every copied path.
+The table below records a partial review of published schema contracts. [`schemas/index.json`](../schemas/index.json) is the complete current inventory. `make check-schema-copies` requires governed verifier copies to match their canonical schema bytes; a matching copy shares the canonical structural contract but doesn't establish that a semantic audit covered every current schema.
 
 `make check-contracts` scans all published copies. Known object shapes must set `additionalProperties: false`. Typed maps remain open only over constrained values. Every other open object needs an exact schema ID and JSON Pointer entry in `scripts/check_schema_closure.py`, with a reason and a non-stale gate.
 

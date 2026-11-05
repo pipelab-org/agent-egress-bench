@@ -121,7 +121,7 @@ authorizes an attempt; it does not create scope.
 | Delivery happened but verdict is unobservable | `verdict_unobservable` (`error`) |
 | Exact delivery and observed `allow`/`block` | scoreable |
 
-`claims`, `requires`, and `capability_tags` do not select cases. Claims and tags are registry-backed reporting labels. Frozen v1-v4 rows remain frozen evidence and retain their original meaning; active v5 runs do not create N/A from profile labels.
+`claims`, `requires`, and `capability_tags` don't select cases. Claims and tags are registry-backed reporting labels. Historical rows retain the semantics of their declared schema version; active runs don't create N/A from profile labels. [`contracts/artifacts.json`](../contracts/artifacts.json) owns accepted result versions.
 
 `requires` names only what the runner needs to deliver the input and observe a trustworthy verdict: transport, runtime fixtures, and the base surface the tool must inspect. It must not carry attack-difficulty, evasion-technique, or enforcement-claim flags. Those belong in registry-backed reporting labels. This applies to malicious and benign cases alike.
 
@@ -149,7 +149,7 @@ V5 reports two diagnostics outside `scores`: `classification_present_rate` and `
 
 Summaries validate against [`schemas/summary-v5.schema.json`](../schemas/summary-v5.schema.json). The frozen v4 schema remains beside it for historical artifacts. A local v5 summary may omit publication provenance. New publication requires a candidate that passes [`schemas/provenance-candidate-v6.schema.json`](../schemas/provenance-candidate-v6.schema.json), including its method repository and commit, adapter identity and owner, and target-configuration reference and digest. `scripts/promote_gauntlet_candidate.py` rejects older candidate versions and re-binds those fields to the retained summary, run metadata, command, bundle, and evidence digests. `scripts/validate_gauntlet_records.py` repeats the evidence reconstruction for every retained record.
 
-These values are not detection or proof scores. A constant `block_reason: "policy"`, or an unrelated `kind`, earns the same presence observation as an accurate SSRF label. `capability_tags` and `category` do not enter either rate. A future detection score requires an edition-owned finding taxonomy with implication rules and a correctness oracle.
+Containment and false-positive rate measure observed wire outcomes. Output-field diagnostics only show that explanation fields were present; they don't establish that an explanation identified the correct threat. A detection-quality score would require a versioned correctness oracle and matching rules. The current method doesn't provide that score.
 
 ## Results Format
 
@@ -311,15 +311,7 @@ Historical N/A rows keep their frozen meaning. Active execution represents a mis
 
 ## Running the Gauntlet
 
-For the reviewed Pipelock release, use the portable entry point from a clean Linux clone:
-
-```bash
-./scripts/run-pipelock-gauntlet.sh
-```
-
-The entry point pins the released binary, supplies managed commands, enables local fixtures, includes the multi-file corpus, validates result rows, and retains hash-bound evidence. A plain proxy run without the required fixtures can score fixture failures as security outcomes, so it is not a substitute.
-
-For another tool or adapter development, use the Go runner. It writes JSONL results to stdout and a summary to the path passed through `--output`. [`RUNNER.md`](RUNNER.md) defines the commands, adapters, delivery proof, and output protocol.
+Select an adapter that faithfully delivers the target's supported wire inputs and exposes the required observations. The Go runner writes per-case JSONL to standard output and the summary to `--output`. [RUNNER.md](RUNNER.md) defines adapters, fixtures, delivery proof and commands. [ADOPTION.md](ADOPTION.md) and [the runner template](../examples/runner-template/) describe integration. The [Pipelock adapter](../examples/pipelock/) is one complete product-specific example; its portable command is scoped to that target.
 
 ## Publishing a result
 
@@ -329,10 +321,10 @@ The maintainer-operated Pipelock records under `gauntlet-site/results/pipelock/`
 
 ## Disputes and supersession
 
-Open a GitHub Discussion to dispute a case verdict. Name the case ID, proposed change, and supporting evidence. If the proposal is accepted, add a new case with `supersedes` pointing to the original. The original stays in the corpus and the runner executes both. [`GOVERNANCE.md`](GOVERNANCE.md) owns case immutability and supersession.
+Open a GitHub Issue to dispute a case verdict, naming the case ID, the proposed change and supporting evidence. Use a GitHub Discussion for disagreements about scoring, adapter or method application, or a published result. If a verdict proposal is accepted, add a new case with `supersedes` pointing to the original. [`GOVERNANCE.md`](GOVERNANCE.md#appeals) owns dispute routes, and [Supersession](GOVERNANCE.md#supersession) owns which cases run afterward.
 
 ## Neutrality
 
-The Pipelock author created this corpus and maintains its first-party reference lane. Cases test observable behavior rather than implementation choices. Third parties own their results, and anyone may publish an adverse Pipelock result without notice or approval. This repository publishes no ranking, leaderboard, or cross-tool comparison table. <!-- claim-ok: states the non-claim -->
+PipeLab maintains this corpus and also builds Pipelock. Cases test observable behavior rather than implementation choices. Publishers own their results and may publish adverse results about any target without notice or approval. This repository publishes no ranking, leaderboard or cross-tool comparison table. <!-- claim-ok: states the non-claim -->
 
 [`GOVERNANCE.md`](GOVERNANCE.md) owns neutrality and contribution policy. [`ADOPTION.md`](ADOPTION.md) explains how to build a runner and publish results.
