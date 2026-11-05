@@ -10,17 +10,12 @@ operator-fatigue and push deployments to turn drift detection off entirely.
 
 A correct detector observes:
 
-1. Baseline at session start: `{get_weather, get_forecast}` with their hashes.
-2. New tools/list response after restart: `{get_weather, get_forecast, get_air_quality}`.
-3. Existing tools' hashes are unchanged. One new tool appears.
-4. Verdict: **warn**, not block. The new tool needs review but isn't an
-   attack on the established baseline.
+1. `before.json` contains `{get_weather, get_forecast}`.
+2. `after.json` contains `{get_weather, get_forecast, get_air_quality}`.
+3. The existing definitions are unchanged and one new tool appears.
+4. The receipt-aware expectation is **warn**, as recorded in `expected.json`. The binary adapter scores an allowed benign change as `allow`; it does not establish that a warning was emitted.
 
-A correct implementation treats new entries differently from mutated existing
-entries: a new tool has no prior hash to compare against. The inventory layer
-can still observe that the known-tools set has grown and emit a `warn` receipt
-with `layer=mcp_tool_baseline` and
-`pattern=baseline_tool_count_increased`.
+A new tool differs from a changed existing definition. Report the inventory increase with the decision fields in `expected.json`, including `layer=mcp_tool_baseline` and `pattern=baseline_tool_count_increased`. This contract does not require per-tool hashes or a particular inventory representation.
 
 ## Why this matters
 
@@ -31,11 +26,7 @@ exist.
 
 ## Vendor differences
 
-Some vendors may emit `allow` here if their drift detector only fires on
-mutation. That's acceptable — the receipt `verdict` MUST be one of
-`{warn, allow}`. **Block here is wrong.** False-positive risk is medium
-because vendors that conflate "tool count changed" with "tool mutated"
-will trip.
+Receipt-aware conformance requires `warn`, as recorded in `expected.json`. The binary adapter scores an allowed benign change as `allow`; that pass doesn't prove a warning was emitted. Blocking this addition is a false positive. False-positive risk is medium because detectors can conflate an inventory increase with a changed existing tool.
 
 ## Source
 

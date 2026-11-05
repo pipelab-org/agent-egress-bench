@@ -27,8 +27,7 @@ referenced by name in the other's description.
 
 A correct detector requires:
 
-1. **Cross-server baseline**: hash and store `save_note` and `read_file`
-   from `before.json`.
+1. **Cross-server observations:** process the `save_note` and `read_file` definitions from `before.json`, retaining the server and tool identities needed to evaluate `after.json`. The contract does not require hashes or a particular storage representation.
 2. **Tool-name reference detection**: parse descriptions for references to
    other tools by name (`read_file`, `save_note`). In `after.json`,
    `save_note`'s description references `read_file` with concrete sensitive
@@ -47,21 +46,13 @@ Single-server rug-pull detection misses this entirely if the detector treats
 each server's baseline as independent. The attack is in the GRAPH, not the
 individual nodes.
 
-## Vendor differences
+## Expected outcome
 
-- Vendors without cross-server chain memory: cannot detect. Disclose.
-- Vendors with chain memory but no sensitivity labels: may flag as warn (chain
-  observed) but cannot prove sensitivity. Block here is over-trigger; warn
-  is acceptable.
-- Detectors with chain memory and sensitivity labels: emit block as specified.
+This malicious case expects `block`. A warning alone doesn't satisfy the binary expectation. A runner without a faithful cross-server route reports the coverage gap rather than flattening the topology or claiming a pass.
 
 ## Forward compatibility
 
-If the common receipt vocabulary for sensitivity labels changes, this fixture's
-`data_classes_in` field should be renamed to match. The `expected.json` is
-intentionally not signed so it can be updated without invalidating any
-cryptographic state — these are decision-semantic specifications, not signed
-receipts.
+The expected receipt and referenced snapshots are part of the immutable case. A change to the decision vocabulary or expected semantics follows [case repair or supersession](../../../docs/GOVERNANCE.md); the absence of a signature does not make these files mutable.
 
 ## Cross-references
 

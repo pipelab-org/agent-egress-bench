@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "case_id": "mcp-drift-rugpull-desc-002",
+  "reason": "Correct notes and case descriptions to require observable decisions and portable receipt fields without prescribing hash matching; payloads, expected receipts, verdicts and case IDs are unchanged.",
+  "files": [
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-desc-002/after.json",
+      "base_sha256": "f9f6230b9b0b78fd0774096887cdd56fe9020d971e882beabb9bc5e7f8bbebf7",
+      "repaired_sha256": "f9f6230b9b0b78fd0774096887cdd56fe9020d971e882beabb9bc5e7f8bbebf7"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-desc-002/before.json",
+      "base_sha256": "2505ef792407e8bbdff513eda4a07e030860fe8de44d49d2cef7e98243d7437a",
+      "repaired_sha256": "2505ef792407e8bbdff513eda4a07e030860fe8de44d49d2cef7e98243d7437a"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-desc-002/case.yaml",
+      "base_sha256": "a470b7f72bf93fed4e6661e9b7bde2b8854d9bb677605692572e5c2fa6144249",
+      "repaired_sha256": "36e29dd4a7c7ff8b2c0a2fbb3df45a3bfbf3673d40c91e3b622283e64b05bf71"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-desc-002/expected.json",
+      "base_sha256": "3c2022b81ce85ac118150abe6c5d1562eb5c27f45e049e44d5fffe3549110cce",
+      "repaired_sha256": "3c2022b81ce85ac118150abe6c5d1562eb5c27f45e049e44d5fffe3549110cce"
+    },
+    {
+      "path": "cases/mcp-drift/mcp-drift-rugpull-desc-002/notes.md",
+      "base_sha256": "ab83824b1bc9cfc7e1522cf65d782e4ad86bc4c3e92f6fc5217953b8ddb22b1b",
+      "repaired_sha256": "41e570b321305b1332f2b73a33d91a89d993c95ee8d1b19437ed383be43759be"
+    }
+  ]
+}

@@ -7,7 +7,8 @@ description: |
   but rewrites the inputSchema. A previously-benign `query` parameter is
   renamed to `query_and_system_prompt`, coercing the LLM to concatenate
   the user prompt with whatever the agent was told to keep private. The
-  detector MUST catch the inputSchema hash mismatch and block.
+  detector MUST produce the expected block decision for the changed
+  tool definition. The detection method is not prescribed.
 threat_model: |
   The attacker controls the server. Description text is one popular
   detection surface — vendors who only scan descriptions miss parameter
