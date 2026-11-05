@@ -50,28 +50,30 @@ make stats
 make preflight
 ```
 
-`make stats` prints loader-backed corpus statistics. `make preflight` runs the repository validation gate, including race tests. The Makefile defines its build environment; direct commands below preserve an existing temporary-directory setting and otherwise use `/tmp`.
+`make stats` prints loader-backed corpus statistics. `make preflight` runs the repository validation gate, including race tests. The Makefile defines its build environment. The direct commands below build into a fresh private directory from `mktemp -d`, so a failed build can't leave an earlier binary to run.
 
 For a focused validator change:
 
 ```bash
-export TMPDIR="${TMPDIR:-/tmp}"
+set -e
+bin_dir="$(mktemp -d)"
 (cd validate && go test -race -count=1 ./...)
-(cd validate && go build -o "$TMPDIR/aeb-validate" .)
-"$TMPDIR/aeb-validate" cases cases
+(cd validate && go build -o "$bin_dir/aeb-validate" .)
+"$bin_dir/aeb-validate" cases cases
 ```
 
 For a focused runner change:
 
 ```bash
-export TMPDIR="${TMPDIR:-/tmp}"
+set -e
+bin_dir="$(mktemp -d)"
 (cd runner && go test -race -count=1 ./...)
-(cd runner && go build -o "$TMPDIR/aeb-gauntlet" .)
-"$TMPDIR/aeb-gauntlet" \
+(cd runner && go build -o "$bin_dir/aeb-gauntlet" .)
+"$bin_dir/aeb-gauntlet" \
   --adapter dryrun \
   --cases cases \
   --profile examples/runner-template/tool-profile-template.json \
-  --output "$TMPDIR/summary.json"
+  --output "$bin_dir/summary.json"
 ```
 
 The dry-run command is a synthetic runner smoke test. It doesn't measure a security product and its evidence isn't eligible for publication as a measurement.

@@ -198,7 +198,9 @@ validate: validate-cases
 
 validate-cases:
 	@mkdir -p "$(TMPDIR)"
-	@bin="$(TMPDIR)/aeb-validate"; trap 'rm -f "$$bin"' EXIT; \
+	@set -eu; build_dir="$$(mktemp -d "$(TMPDIR)/aeb-validate.XXXXXX")"; \
+	trap 'rm -rf "$$build_dir"' EXIT; \
+	bin="$$build_dir/aeb-validate"; \
 	(cd validate && go build -o "$$bin" .); \
 	"$$bin" cases cases
 
