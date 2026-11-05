@@ -40,9 +40,8 @@ type corpusVersionRecord struct {
 // Binding the label to the digest makes that mistake mechanically impossible.
 // Adding, removing or re-expecting a scored case moves the digest, the entry for
 // the current label stops matching, and this test fails with the values to
-// record under a new label. Documentation and unreferenced files are already
-// excluded from the digest by selectedCorpusFiles, so editorial work on the
-// corpus does not force a version bump.
+// record under a new label. selectedCorpusFiles excludes unreferenced files;
+// each declared multi-file notes file remains selected and digest-covered.
 func TestCorpusVersionNamesThisCorpus(t *testing.T) {
 	records := readCorpusVersionLedger(t)
 
