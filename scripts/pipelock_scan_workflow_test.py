@@ -69,6 +69,7 @@ def steps_running(job, needle):
 RELEASE_COMMITS = {
     "3.6.0": "3e868ac5d5b62d3a2790958542171143af8a0e38",
     "3.7.0": "47c14c59b14f835f53971d22941b556f44f2baa0",
+    "3.8.0": "556048c1c18d84f7d61d28f686220178a4ff2c4d",
 }
 # The repository moved from luckyPipewrench to pipelab-org. GitHub owner and
 # repository names are case-insensitive, so either owner in any case names the
