@@ -23,6 +23,9 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
+    branches: [main]
 
 permissions:
   contents: read
@@ -84,12 +87,12 @@ jobs:
           echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
           "${RUNNER_TEMP}/bin/pipelock" --version
 
-      - name: Scan pull request diff
-        if: github.event_name == 'pull_request'
+      - name: Scan proposed change diff
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
           CONFIG_PATH: ${{ steps.pipelock.outputs['config-path'] }}
         run: |
           set -euo pipefail

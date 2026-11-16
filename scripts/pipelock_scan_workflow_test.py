@@ -34,10 +34,11 @@ WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pipelock.yaml"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SCAN_COMMAND = "pipelock git scan-diff"
 
-# The two events that must each reach a scan, keyed by the condition the step
+# Events that must each reach a scan, keyed by the condition the step
 # is actually gated on rather than by its display name.
 REQUIRED_EVENTS = {
-    "pull_request": "github.event_name == 'pull_request'",
+    "pull_request": "github.event_name == 'pull_request' || github.event_name == 'merge_group'",
+    "merge_group": "github.event_name == 'pull_request' || github.event_name == 'merge_group'",
     "workflow_dispatch": "github.event_name == 'workflow_dispatch'",
 }
 
@@ -261,6 +262,15 @@ class PipelockScanWorkflowTest(unittest.TestCase):
                 any(condition in c for c in conditions),
                 f"no scanning step is gated on {condition!r}; {event} would run the job without scanning",
             )
+
+    def test_queue_scan_uses_group_base_and_head(self):
+        job = scan_job(load_workflow())
+        scan = next(step for step in steps_running(job, SCAN_COMMAND)
+                    if "merge_group" in step.get("if", ""))
+        self.assertEqual("${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}", scan["env"]["BASE_SHA"])
+        self.assertEqual("${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.head.sha }}", scan["env"]["HEAD_SHA"])
+        self.assertIn('git merge-base "$BASE_SHA" "$HEAD_SHA"', scan["run"])
+        self.assertIn('"$merge_base" "$HEAD_SHA"', scan["run"])
 
     def test_scanner_is_built_from_an_immutable_pinned_revision(self):
         """The executed install command must consume a pinned commit.

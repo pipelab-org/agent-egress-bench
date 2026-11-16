@@ -9,6 +9,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
+    branches: [main]
 
 concurrency:
   group: validate-${{ github.ref }}
@@ -36,10 +39,12 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
           case "$GITHUB_EVENT_NAME" in
             pull_request) validation_base="$PR_BASE_SHA" ;;
+            merge_group) validation_base="$MERGE_GROUP_BASE_SHA" ;;
             push) validation_base="$PUSH_BEFORE_SHA" ;;
             workflow_dispatch) validation_base="$(git merge-base "origin/$DEFAULT_BRANCH" HEAD)" ;;
             *) echo "unsupported validation event: $GITHUB_EVENT_NAME" >&2; exit 1 ;;
@@ -79,10 +84,12 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
           case "$GITHUB_EVENT_NAME" in
             pull_request) immutable_base="$PR_BASE_SHA" ;;
+            merge_group) immutable_base="$MERGE_GROUP_BASE_SHA" ;;
             push) immutable_base="$PUSH_BEFORE_SHA" ;;
             workflow_dispatch) immutable_base="$(git merge-base "origin/$DEFAULT_BRANCH" HEAD)" ;;
             *) echo "unsupported validation event: $GITHUB_EVENT_NAME" >&2; exit 1 ;;
@@ -181,7 +188,7 @@ jobs:
       # this in step with continuous-gauntlet.yaml.
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
 
       - name: Scan both modules for called vulnerabilities
         run: |
