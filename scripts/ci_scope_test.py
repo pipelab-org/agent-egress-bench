@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import runpy
 import subprocess
 import tempfile
 import unittest
@@ -10,6 +11,28 @@ from scripts.ci_scope import changed_paths, is_workflow_only
 
 
 class CIScopeTest(unittest.TestCase):
+    def test_review_source_policy_accepts_one_approved_pin_and_rejects_others(self) -> None:
+        policy = runpy.run_path(str(Path(__file__).resolve().with_name("check_agent_review_workflow.py")))
+        approved = policy["APPROVED_REVIEWER_SHAS"]
+        prefix = "    uses: pipelab-org/agent-review/.github/workflows/agent-review-reusable.yaml@"
+        cases = [("single", [approved[-1]], True), ("repeated", [approved[-1]] * 3, True),
+                 ("mixed", [approved[0], approved[-1]], False), ("empty", [], False),
+                 ("unapproved", ["0" * 40], False)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows = root / ".github/workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "review-caller-contract.yaml").write_text(policy["EXPECTED_CONTRACTS"][0], encoding="utf-8")
+            for label, pins, accepted in cases:
+                with self.subTest(label=label):
+                    (workflows / "agent-review.yaml").write_text(
+                        "".join(prefix + pin + " # main\n" for pin in pins), encoding="utf-8")
+                    if accepted:
+                        self.assertEqual(approved[-1], policy["validate_policy"](root))
+                    else:
+                        with self.assertRaises(ValueError):
+                            policy["validate_policy"](root)
+
     def test_resolves_refs_before_diff_and_uses_nul_delimited_paths(self) -> None:
         completed = [
             subprocess.CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
