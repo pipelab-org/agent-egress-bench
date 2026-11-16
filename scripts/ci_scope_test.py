@@ -33,6 +33,38 @@ class CIScopeTest(unittest.TestCase):
                         with self.assertRaises(ValueError):
                             policy["validate_policy"](root)
 
+    def test_merge_queue_runs_required_workflows_and_uses_the_group_base(self) -> None:
+        import os
+        import re
+        import yaml
+
+        root = Path(__file__).resolve().parents[1]
+        workflows = root / ".github/workflows"
+        for name, required_jobs in [("validate.yaml", {"validate", "runner"}),
+                                    ("security.yaml", {"codeql"}),
+                                    ("pipelock.yaml", {"security-scan"})]:
+            document = yaml.safe_load((workflows / name).read_text())
+            triggers = document.get("on", document.get(True))
+            self.assertEqual({"types": ["checks_requested"], "branches": ["main"]}, triggers["merge_group"])
+            for job in required_jobs:
+                self.assertNotIn("if", document["jobs"][job])
+        document = yaml.safe_load((workflows / "validate.yaml").read_text())
+        steps = document["jobs"]["validate"]["steps"]
+        consumers = [("python3 scripts/ci_scope.py", "validation_base", "--base"),
+                     ("python3 scripts/validate_gauntlet_records.py", "immutable_base", "--immutable-base")]
+        for command, variable, flag in consumers:
+            step = next(step for step in steps if command in step.get("run", ""))
+            self.assertEqual("${{ github.event.merge_group.base_sha }}", step["env"]["MERGE_GROUP_BASE_SHA"])
+            self.assertIn(f'{flag} "${variable}"', step["run"])
+            selector = re.search(r"case .*?\nesac", step["run"], re.S).group()
+            env = dict(os.environ, GITHUB_EVENT_NAME="merge_group", MERGE_GROUP_BASE_SHA="group-base", PR_BASE_SHA="wrong-pr-base", PUSH_BEFORE_SHA="wrong-push-base")
+            result = subprocess.run(["bash", "-c", f'set -eu\n{selector}\nprintf "%s" "${variable}"'], env=env, capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual("group-base", result.stdout)
+            env["GITHUB_EVENT_NAME"] = "unknown"
+            result = subprocess.run(["bash", "-c", f'set -eu\n{selector}'], env=env, capture_output=True, text=True)
+            self.assertNotEqual(0, result.returncode)
+
     def test_resolves_refs_before_diff_and_uses_nul_delimited_paths(self) -> None:
         completed = [
             subprocess.CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
