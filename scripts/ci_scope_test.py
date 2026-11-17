@@ -14,10 +14,13 @@ class CIScopeTest(unittest.TestCase):
     def test_review_source_policy_accepts_one_approved_pin_and_rejects_others(self) -> None:
         policy = runpy.run_path(str(Path(__file__).resolve().with_name("check_agent_review_workflow.py")))
         approved = policy["APPROVED_REVIEWER_SHAS"]
+        final = "1aa9741927ec5546036506a0ec764e1b41b1a241"
+        retired = "856e474c1697f3897ccaa156f083e0b9504196e0"
+        self.assertEqual((final,), approved)
         prefix = "    uses: pipelab-org/agent-review/.github/workflows/agent-review-reusable.yaml@"
-        cases = [("single", [approved[-1]], True), ("repeated", [approved[-1]] * 3, True),
-                 ("mixed", [approved[0], approved[-1]], False), ("empty", [], False),
-                 ("unapproved", ["0" * 40], False)]
+        cases = [("single", [final], True), ("repeated", [final] * 3, True),
+                 ("mixed", [retired, final], False), ("retired", [retired, retired, retired], False),
+                 ("empty", [], False), ("unapproved", ["0" * 40], False)]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             workflows = root / ".github/workflows"
@@ -28,7 +31,7 @@ class CIScopeTest(unittest.TestCase):
                     (workflows / "agent-review.yaml").write_text(
                         "".join(prefix + pin + " # main\n" for pin in pins), encoding="utf-8")
                     if accepted:
-                        self.assertEqual(approved[-1], policy["validate_policy"](root))
+                        self.assertEqual(final, policy["validate_policy"](root))
                     else:
                         with self.assertRaises(ValueError):
                             policy["validate_policy"](root)
